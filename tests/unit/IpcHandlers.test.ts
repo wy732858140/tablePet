@@ -27,6 +27,7 @@ const createHandlerContext = () => {
     getPetWindow: vi.fn(),
     show: vi.fn(),
     hide: vi.fn(),
+    close: vi.fn(),
     setPosition: vi.fn(),
     setClickThrough: vi.fn(),
     ensureVisible: vi.fn()
@@ -76,6 +77,12 @@ describe('IpcHandlers', () => {
     const point = { x: 10.5, y: -20 }
     getHandler('window:set-position')(undefined, point)
     expect(windowController.setPosition).toHaveBeenCalledWith(point)
+  })
+
+  it('closes the pet window through IPC', () => {
+    const { windowController } = createHandlerContext()
+    getHandler('window:close')(undefined)
+    expect(windowController.close).toHaveBeenCalled()
   })
 
   it.each([null, { x: 1 }, { x: Number.NaN, y: 2 }, { x: 1, y: Number.POSITIVE_INFINITY }])(

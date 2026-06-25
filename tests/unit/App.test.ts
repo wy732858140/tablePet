@@ -60,6 +60,7 @@ describe('App', () => {
       getSettings: vi.fn().mockResolvedValue(settings),
       setClickThrough: vi.fn(),
       setPetPosition: vi.fn(),
+      closeWindow: vi.fn(),
       onImportPetRequested: vi.fn(() => vi.fn())
     }
 
@@ -73,6 +74,41 @@ describe('App', () => {
     expect(host.querySelector('canvas')).not.toBeNull()
     expect(host.textContent).toContain('Unable to load pet spritesheet.')
     expect(host.textContent).not.toContain('Import Pet Package')
+
+    app.unmount()
+  })
+
+  it('calls the desktop API when the close button is clicked', async () => {
+    const settings: Settings = {
+      petWindow: {
+        position: null,
+        scale: 1,
+        alwaysOnTop: true,
+        visibleOnLaunch: true
+      },
+      behavior: {
+        quietMode: false
+      }
+    }
+    window.desktopPet = {
+      listPets: vi.fn().mockResolvedValue({ currentPetId: null, pets: [] }),
+      importPetPackage: vi.fn(),
+      getSettings: vi.fn().mockResolvedValue(settings),
+      setClickThrough: vi.fn(),
+      setPetPosition: vi.fn(),
+      closeWindow: vi.fn(),
+      onImportPetRequested: vi.fn(() => vi.fn())
+    }
+
+    const host = document.createElement('div')
+    document.body.append(host)
+    const app = createApp(App)
+
+    app.mount(host)
+    await settle()
+    host.querySelector<HTMLButtonElement>('[aria-label="Close window"]')?.click()
+
+    expect(window.desktopPet.closeWindow).toHaveBeenCalled()
 
     app.unmount()
   })

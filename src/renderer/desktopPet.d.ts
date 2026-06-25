@@ -8,6 +8,7 @@ declare global {
       getSettings(): Promise<Settings>
       setClickThrough(enabled: boolean, forward?: boolean): Promise<void>
       setPetPosition(point: Point): Promise<void>
+      closeWindow(): Promise<void>
       onImportPetRequested(callback: () => void): () => void
     }
   }

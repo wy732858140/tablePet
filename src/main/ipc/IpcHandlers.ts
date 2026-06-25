@@ -42,6 +42,9 @@ export const registerIpcHandlers = (
   ipcMain.handle('window:set-position', (_event, point: unknown) => {
     windowController.setPosition(toPoint(point))
   })
+  ipcMain.handle('window:close', () => {
+    windowController.close()
+  })
   ipcMain.handle('pet:import-folder', async () => {
     const result = await dialog.showOpenDialog({
       properties: ['openDirectory']

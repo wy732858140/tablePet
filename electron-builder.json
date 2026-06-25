@@ -8,6 +8,16 @@
     "dist/**/*",
     "package.json"
   ],
+  "extraResources": [
+    {
+      "from": "pets",
+      "to": "pets",
+      "filter": [
+        "**/*",
+        "!**/.DS_Store"
+      ]
+    }
+  ],
   "mac": {
     "target": ["dmg"],
     "category": "public.app-category.utilities"

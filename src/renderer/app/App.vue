@@ -4,6 +4,7 @@ import type { HatchPetState, LoadedPet, PetLibraryEntry, Settings } from '@share
 import { createBehaviorEngine } from '../pet/BehaviorEngine'
 import PetCanvas from '../pet/PetCanvas.vue'
 import { emptyPetView, type PetViewState } from '../pet/PetViewModel'
+import { getDraggedWindowPosition } from '../window/windowDrag'
 import PetLibraryView from './PetLibraryView.vue'
 import SettingsPanel from './SettingsPanel.vue'
 
@@ -17,6 +18,7 @@ const engine = createBehaviorEngine()
 let pointerActive = false
 let didDrag = false
 let pointerStart: { x: number; y: number } | null = null
+let windowDragOffset: { x: number; y: number } | null = null
 let unsubscribeImportRequest: (() => void) | null = null
 const dragThresholdPx = 4
 
@@ -85,12 +87,59 @@ const importPet = async () => {
   syncAnimation()
 }
 
+const capturePointer = (event: PointerEvent) => {
+  const target = event.currentTarget as HTMLElement | null
+  if (
+    typeof target?.hasPointerCapture === 'function' &&
+    typeof target.setPointerCapture === 'function' &&
+    !target.hasPointerCapture(event.pointerId)
+  ) {
+    target.setPointerCapture(event.pointerId)
+  }
+}
+
+const releasePointer = (event: PointerEvent) => {
+  const target = event.currentTarget as HTMLElement | null
+  if (
+    typeof target?.hasPointerCapture === 'function' &&
+    typeof target.releasePointerCapture === 'function' &&
+    target.hasPointerCapture(event.pointerId)
+  ) {
+    target.releasePointerCapture(event.pointerId)
+  }
+}
+
+const closeWindow = () => {
+  void window.desktopPet.closeWindow()
+}
+
+const onWindowDragStart = (event: PointerEvent) => {
+  windowDragOffset = { x: event.clientX, y: event.clientY }
+  capturePointer(event)
+}
+
+const onWindowDragMove = (event: PointerEvent) => {
+  if (!windowDragOffset) return
+  void window.desktopPet.setPetPosition(
+    getDraggedWindowPosition({
+      screenX: event.screenX,
+      screenY: event.screenY,
+      offsetX: windowDragOffset.x,
+      offsetY: windowDragOffset.y
+    })
+  )
+}
+
+const onWindowDragEnd = (event: PointerEvent) => {
+  windowDragOffset = null
+  releasePointer(event)
+}
+
 const onPointerDown = (event: PointerEvent) => {
   pointerActive = true
   didDrag = false
   pointerStart = { x: event.screenX, y: event.screenY }
-  const target = event.currentTarget as HTMLElement | null
-  target?.setPointerCapture(event.pointerId)
+  capturePointer(event)
   engine.dragStart({ x: event.screenX, y: event.screenY })
   syncAnimation()
 }
@@ -112,10 +161,7 @@ const onPointerUp = (event: PointerEvent) => {
   if (!pointerActive) return
   pointerActive = false
   pointerStart = null
-  const target = event.currentTarget as HTMLElement | null
-  if (target?.hasPointerCapture(event.pointerId)) {
-    target.releasePointerCapture(event.pointerId)
-  }
+  releasePointer(event)
   engine.dragEnd()
   syncAnimation()
 }
@@ -162,6 +208,18 @@ onUnmounted(cleanup)
 
 <template>
   <main class="app">
+    <section class="window-bar" aria-label="Window controls">
+      <div
+        class="window-drag-handle"
+        @pointerdown="onWindowDragStart"
+        @pointermove="onWindowDragMove"
+        @pointerup="onWindowDragEnd"
+        @pointercancel="onWindowDragEnd"
+      >
+        <span>TablePet</span>
+      </div>
+      <button class="window-close" type="button" aria-label="Close window" @click="closeWindow">x</button>
+    </section>
     <div
       v-if="loadedPet"
       class="pet-surface"
@@ -189,6 +247,47 @@ onUnmounted(cleanup)
   width: 100%;
   height: 100%;
   background: transparent;
+}
+
+.window-bar {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  right: 8px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  color: #1f2328;
+  font-family: system-ui, sans-serif;
+  font-size: 11px;
+  line-height: 1;
+  pointer-events: auto;
+}
+
+.window-drag-handle {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  min-width: 0;
+  height: 100%;
+  padding: 0 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.72);
+  cursor: move;
+  user-select: none;
+}
+
+.window-close {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(31, 35, 40, 0.82);
+  color: #ffffff;
+  cursor: pointer;
 }
 
 .pet-surface {
@@ -219,8 +318,8 @@ onUnmounted(cleanup)
   box-sizing: border-box;
   width: calc(100vw - 24px);
   max-width: 280px;
-  max-height: calc(100vh - 24px);
-  margin: 12px;
+  max-height: calc(100vh - 48px);
+  margin: 36px 12px 12px;
   padding: 12px;
   overflow: auto;
   overflow-wrap: anywhere;

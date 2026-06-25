@@ -8,6 +8,7 @@ const api = {
   setClickThrough: (enabled: boolean, forward = true): Promise<void> =>
     ipcRenderer.invoke('window:set-click-through', enabled, forward),
   setPetPosition: (point: Point): Promise<void> => ipcRenderer.invoke('window:set-position', point),
+  closeWindow: (): Promise<void> => ipcRenderer.invoke('window:close'),
   onImportPetRequested: (callback: () => void): (() => void) => {
     const listener = () => callback()
     ipcRenderer.on('ui:import-pet', listener)

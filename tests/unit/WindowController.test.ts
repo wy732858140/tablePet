@@ -14,6 +14,7 @@ const electronMock = vi.hoisted(() => {
     getBounds = vi.fn(() => ({ x: 40, y: 40, width: 288, height: 312 }))
     show = vi.fn()
     hide = vi.fn()
+    close = vi.fn()
     isDestroyed = vi.fn(() => this.destroyed)
 
     constructor() {
@@ -67,14 +68,25 @@ describe('WindowController', () => {
 
     controller.show()
     controller.hide()
+    controller.close()
     controller.setPosition({ x: 1.4, y: 2.6 })
     controller.setClickThrough(true)
     controller.ensureVisible()
 
     expect(petWindow.show).not.toHaveBeenCalled()
     expect(petWindow.hide).not.toHaveBeenCalled()
+    expect(petWindow.close).not.toHaveBeenCalled()
     expect(petWindow.setPosition).not.toHaveBeenCalled()
     expect(petWindow.setIgnoreMouseEvents).not.toHaveBeenCalled()
     expect(petWindow.getBounds).not.toHaveBeenCalled()
+  })
+
+  it('closes the live pet window', () => {
+    const controller = createWindowController('/preload.cjs', 'http://127.0.0.1:5173')
+    const petWindow = controller.createPetWindow() as unknown as FakeBrowserWindow
+
+    controller.close()
+
+    expect(petWindow.close).toHaveBeenCalled()
   })
 })

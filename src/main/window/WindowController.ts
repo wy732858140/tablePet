@@ -48,6 +48,10 @@ export const createWindowController = (preloadPath: string, rendererUrl: string)
     getLivePetWindow()?.setPosition(Math.round(point.x), Math.round(point.y))
   }
 
+  const close = () => {
+    getLivePetWindow()?.close()
+  }
+
   const ensureVisible = () => {
     const window = getLivePetWindow()
     if (!window) return
@@ -62,8 +66,12 @@ export const createWindowController = (preloadPath: string, rendererUrl: string)
   return {
     createPetWindow,
     getPetWindow: getLivePetWindow,
-    show: () => getLivePetWindow()?.show(),
+    show: () => {
+      const window = getLivePetWindow() ?? createPetWindow()
+      window.show()
+    },
     hide: () => getLivePetWindow()?.hide(),
+    close,
     setPosition,
     setClickThrough,
     ensureVisible
