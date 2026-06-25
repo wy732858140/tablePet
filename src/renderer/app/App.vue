@@ -21,11 +21,11 @@ let unsubscribeImportRequest: (() => void) | null = null
 const dragThresholdPx = 4
 
 const viewState = computed<PetViewState>(() => {
-  if (errorMessage.value) {
-    return { kind: 'error', message: errorMessage.value }
-  }
   if (currentPet.value) {
     return { kind: 'loaded', pet: currentPet.value }
+  }
+  if (errorMessage.value) {
+    return { kind: 'error', message: errorMessage.value }
   }
   return emptyPetView()
 })
@@ -172,6 +172,7 @@ onUnmounted(cleanup)
       @click="onClick"
     >
       <PetCanvas :pet="loadedPet" :state="animation" :scale="scale" @load-error="onPetLoadError" />
+      <p v-if="errorMessage" class="pet-error">{{ errorMessage }}</p>
     </div>
     <section v-else class="welcome">
       <SettingsPanel />
@@ -191,9 +192,27 @@ onUnmounted(cleanup)
 }
 
 .pet-surface {
+  position: relative;
   display: grid;
   place-items: center;
   touch-action: none;
+}
+
+.pet-error {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  margin: 0;
+  padding: 4px 6px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.88);
+  color: #9a3412;
+  font-family: system-ui, sans-serif;
+  font-size: 11px;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+  pointer-events: none;
 }
 
 .welcome {
