@@ -3,16 +3,23 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "packageManager": "npm@11.6.1",
   "main": "dist/main/main.js",
   "scripts": {
     "dev:renderer": "vite --host 127.0.0.1",
     "dev:main": "tsc -p tsconfig.node.json --watch --preserveWatchOutput",
-    "dev:electron": "concurrently -k \"npm:dev:main\" \"npm:dev:renderer\" \"wait-on dist/main/main.js dist/preload/desktopPetApi.js http://127.0.0.1:5173 && electron .\"",
+    "dev:electron": "concurrently -k \"npm:dev:main\" \"npm:dev:renderer\" \"wait-on dist/main/main.js dist/preload/desktopPetApi.cjs http://127.0.0.1:5173 && electron .\"",
     "build": "vue-tsc --noEmit && vite build && tsc -p tsconfig.node.json",
     "test": "vitest run --passWithNoTests",
+    "typecheck:test": "tsc -p tsconfig.test.json --noEmit",
+    "typecheck:node": "tsc -p tsconfig.node.json --noEmit",
     "test:watch": "vitest",
     "package": "npm run build && electron-builder --dir",
     "dist": "npm run build && electron-builder"
+  },
+  "engines": {
+    "node": ">=20.19.0",
+    "npm": ">=10.0.0"
   },
   "dependencies": {
     "electron-store": "^10.0.1",

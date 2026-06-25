@@ -1,5 +1,9 @@
 node_modules/
 dist/
 release/
+coverage/
+.codex/
+.comet/
 .DS_Store
 *.log
+.env*

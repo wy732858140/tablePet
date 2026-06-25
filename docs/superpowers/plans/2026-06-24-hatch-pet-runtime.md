@@ -6,6 +6,8 @@
 
 **Architecture:** Use Electron main/preload/renderer separation. Main owns windows, tray/menu, file import, local library, and settings; renderer owns Vue UI, Canvas 2D atlas playback, pointer hit bounds, and behavior state. Hatch Pet v1 compatibility lives in shared TypeScript modules so rendering, import validation, and tests all use the same contract.
 
+**NodeNext import rule:** TypeScript compiled by `tsc` for Node/Electron execution must use runtime-valid module formats. Main-process `.ts` files and shared modules consumed by them use `.js` relative import specifiers. Electron preload uses CommonJS (`src/preload/desktopPetApi.cts` -> `dist/preload/desktopPetApi.cjs`) so the sandboxed preload path stays compatible with Electron.
+
 **Tech Stack:** Electron, Vue 3, Vite, TypeScript, Canvas 2D, Vitest, electron-builder.
 
 ---
@@ -18,6 +20,7 @@ Create this structure:
 package.json
 tsconfig.json
 tsconfig.node.json
+tsconfig.test.json
 vite.config.ts
 electron-builder.json
 index.html
@@ -31,7 +34,7 @@ src/
     settings/SettingsStore.ts
     ipc/IpcHandlers.ts
   preload/
-    desktopPetApi.ts
+    desktopPetApi.cts
   renderer/
     app/App.vue
     app/SettingsPanel.vue
@@ -66,7 +69,7 @@ Responsibility map:
 - `src/main/settings/SettingsStore.ts`: `settings.json` defaults, load/save/corrupt backup.
 - `src/main/tray/TrayController.ts`: macOS menu bar / Windows tray menu.
 - `src/main/ipc/IpcHandlers.ts`: all main-side IPC handlers.
-- `src/preload/desktopPetApi.ts`: minimal safe renderer API.
+- `src/preload/desktopPetApi.cts`: minimal safe renderer API compiled to CommonJS preload.
 - `src/renderer/pet/AnimationCatalog.ts`: renderer-facing animation lookup.
 - `src/renderer/pet/BehaviorEngine.ts`: deterministic state transitions.
 - `src/renderer/pet/PointerHitArea.ts`: per-frame alpha bounds scanner and bounds hit testing.
@@ -81,6 +84,7 @@ Responsibility map:
 - Create: `package.json`
 - Create: `tsconfig.json`
 - Create: `tsconfig.node.json`
+- Create: `tsconfig.test.json`
 - Create: `vite.config.ts`
 - Create: `electron-builder.json`
 - Create: `index.html`
@@ -106,16 +110,23 @@ Create `package.json`:
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "packageManager": "npm@11.6.1",
   "main": "dist/main/main.js",
   "scripts": {
     "dev:renderer": "vite --host 127.0.0.1",
     "dev:main": "tsc -p tsconfig.node.json --watch --preserveWatchOutput",
-    "dev:electron": "concurrently -k \"npm:dev:main\" \"npm:dev:renderer\" \"wait-on dist/main/main.js dist/preload/desktopPetApi.js http://127.0.0.1:5173 && electron .\"",
+    "dev:electron": "concurrently -k \"npm:dev:main\" \"npm:dev:renderer\" \"wait-on dist/main/main.js dist/preload/desktopPetApi.cjs http://127.0.0.1:5173 && electron .\"",
     "build": "vue-tsc --noEmit && vite build && tsc -p tsconfig.node.json",
     "test": "vitest run --passWithNoTests",
+    "typecheck:test": "tsc -p tsconfig.test.json --noEmit",
+    "typecheck:node": "tsc -p tsconfig.node.json --noEmit",
     "test:watch": "vitest",
     "package": "npm run build && electron-builder --dir",
     "dist": "npm run build && electron-builder"
+  },
+  "engines": {
+    "node": ">=20.19.0",
+    "npm": ">=10.0.0"
   },
   "dependencies": {
     "electron-store": "^10.0.1",
@@ -158,9 +169,21 @@ Create `tsconfig.json`:
       "@shared/*": ["src/shared/*"],
       "@renderer/*": ["src/renderer/*"]
     },
+    "types": []
+  },
+  "include": ["src/renderer/**/*.ts", "src/renderer/**/*.vue", "src/shared/**/*.ts"]
+}
+```
+
+Create `tsconfig.test.json`:
+
+```json
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
     "types": ["vitest/globals", "node"]
   },
-  "include": ["src/renderer/**/*.ts", "src/renderer/**/*.vue", "src/shared/**/*.ts", "tests/**/*.ts"]
+  "include": ["src/**/*.ts", "src/**/*.vue", "tests/**/*.ts", "vite.config.ts"]
 }
 ```
 
@@ -179,7 +202,7 @@ Create `tsconfig.node.json`:
     "rootDir": "src",
     "types": ["node", "electron"]
   },
-  "include": ["src/main/**/*.ts", "src/preload/**/*.ts", "src/shared/**/*.ts"]
+  "include": ["src/main/**/*.ts", "src/preload/**/*.cts", "src/shared/**/*.ts"]
 }
 ```
 
@@ -187,11 +210,17 @@ Create `vite.config.ts`:
 
 ```ts
 import vue from '@vitejs/plugin-vue'
-import { defineConfig } from 'vitest/config'
+import { defineConfig, type UserConfig } from 'vite'
+import type { InlineConfig } from 'vitest'
 
-export default defineConfig({
+type ViteConfigWithVitest = UserConfig & {
+  test?: InlineConfig
+}
+
+const config = {
   plugins: [vue()],
   root: '.',
+  base: './',
   build: {
     outDir: 'dist/renderer',
     emptyOutDir: true
@@ -212,7 +241,9 @@ export default defineConfig({
     globals: true,
     include: ['tests/**/*.test.ts']
   }
-})
+} satisfies ViteConfigWithVitest
+
+export default defineConfig(config)
 ```
 
 Create `electron-builder.json`:
@@ -261,8 +292,12 @@ Create `.gitignore`:
 node_modules/
 dist/
 release/
+coverage/
+.codex/
+.comet/
 .DS_Store
 *.log
+.env*
 ```
 
 - [ ] **Step 4: Install dependencies**
@@ -290,7 +325,7 @@ Expected: Vitest starts and reports no tests found or passes once tests exist.
 Run:
 
 ```bash
-git add package.json package-lock.json tsconfig.json tsconfig.node.json vite.config.ts electron-builder.json index.html .gitignore
+git add package.json package-lock.json tsconfig.json tsconfig.node.json tsconfig.test.json vite.config.ts electron-builder.json index.html .gitignore
 git commit -m "chore: scaffold electron vue runtime"
 ```
 
@@ -438,7 +473,7 @@ export type ImportErrorCode =
 Create `src/shared/hatchPetV1.ts`:
 
 ```ts
-import type { AnimationDefinition, HatchPetState } from './types'
+import type { AnimationDefinition, HatchPetState } from './types.js'
 
 export const HATCH_PET_V1_ATLAS = {
   width: 1536,
@@ -542,6 +577,9 @@ export const getAnimationDefinition = (state: HatchPetState): AnimationDefinitio
 
 export const getFrameSourceRect = (definition: AnimationDefinition, frameIndex: number) => {
   const column = definition.frames[frameIndex]
+  if (column === undefined) {
+    throw new RangeError(`Frame index ${frameIndex} is out of bounds for ${definition.state}`)
+  }
   return {
     x: column * HATCH_PET_V1_CELL.width,
     y: definition.row * HATCH_PET_V1_CELL.height,
@@ -826,7 +864,7 @@ Create `src/main/settings/SettingsStore.ts`:
 ```ts
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import type { Settings } from '../../shared/types'
+import type { Settings } from '../../shared/types.js'
 
 const defaultSettings = (): Settings => ({
   petWindow: {
@@ -874,7 +912,7 @@ Create `src/main/pets/PetLibraryStore.ts`:
 ```ts
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import type { PetLibrary, PetLibraryEntry } from '../../shared/types'
+import type { PetLibrary, PetLibraryEntry } from '../../shared/types.js'
 
 const emptyLibrary = (): PetLibrary => ({ currentPetId: null, pets: [] })
 
@@ -1035,8 +1073,8 @@ Create `src/main/pets/PetPackageImporter.ts`:
 import { copyFile, mkdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { imageSize } from 'image-size'
-import { HATCH_PET_V1_ATLAS } from '../../shared/hatchPetV1'
-import type { HatchPetManifest, ImportResult, Size } from '../../shared/types'
+import { HATCH_PET_V1_ATLAS } from '../../shared/hatchPetV1.js'
+import type { HatchPetManifest, ImportResult, Size } from '../../shared/types.js'
 
 type ImageInspector = (path: string) => Promise<Size>
 
@@ -1235,7 +1273,7 @@ Expected: commit succeeds.
 - Create: `src/main/window/WindowController.ts`
 - Create: `src/main/tray/TrayController.ts`
 - Create: `src/main/ipc/IpcHandlers.ts`
-- Create: `src/preload/desktopPetApi.ts`
+- Create: `src/preload/desktopPetApi.cts`
 
 - [ ] **Step 1: Create `WindowController`**
 
@@ -1243,7 +1281,7 @@ Create `src/main/window/WindowController.ts`:
 
 ```ts
 import { BrowserWindow, screen } from 'electron'
-import type { Point } from '../../shared/types'
+import type { Point } from '../../shared/types.js'
 
 export type WindowController = ReturnType<typeof createWindowController>
 
@@ -1307,10 +1345,10 @@ Create `src/main/ipc/IpcHandlers.ts`:
 
 ```ts
 import { dialog, ipcMain } from 'electron'
-import type { WindowController } from '../window/WindowController'
-import type { createPetPackageImporter } from '../pets/PetPackageImporter'
-import type { createPetLibraryStore } from '../pets/PetLibraryStore'
-import type { createSettingsStore } from '../settings/SettingsStore'
+import type { WindowController } from '../window/WindowController.js'
+import type { createPetPackageImporter } from '../pets/PetPackageImporter.js'
+import type { createPetLibraryStore } from '../pets/PetLibraryStore.js'
+import type { createSettingsStore } from '../settings/SettingsStore.js'
 
 export const registerIpcHandlers = (
   windowController: WindowController,
@@ -1350,11 +1388,11 @@ export const registerIpcHandlers = (
 
 - [ ] **Step 3: Create preload API**
 
-Create `src/preload/desktopPetApi.ts`:
+Create `src/preload/desktopPetApi.cts`:
 
 ```ts
 import { contextBridge, ipcRenderer } from 'electron'
-import type { ImportResult, PetLibrary, Point, Settings } from '../shared/types'
+import type { ImportResult, PetLibrary, Point, Settings } from '../shared/types.js'
 
 const api = {
   listPets: (): Promise<PetLibrary> => ipcRenderer.invoke('pet:list'),
@@ -1410,18 +1448,18 @@ Create `src/main/main.ts`:
 ```ts
 import { app } from 'electron'
 import { join } from 'node:path'
-import { createPetPackageImporter } from './pets/PetPackageImporter'
-import { createPetLibraryStore } from './pets/PetLibraryStore'
-import { createSettingsStore } from './settings/SettingsStore'
-import { registerIpcHandlers } from './ipc/IpcHandlers'
-import { createTrayController } from './tray/TrayController'
-import { createWindowController } from './window/WindowController'
+import { createPetPackageImporter } from './pets/PetPackageImporter.js'
+import { createPetLibraryStore } from './pets/PetLibraryStore.js'
+import { createSettingsStore } from './settings/SettingsStore.js'
+import { registerIpcHandlers } from './ipc/IpcHandlers.js'
+import { createTrayController } from './tray/TrayController.js'
+import { createWindowController } from './window/WindowController.js'
 
 const isDev = !app.isPackaged
 
 void app.whenReady().then(() => {
   const appDataDir = join(app.getPath('userData'), 'runtime')
-  const preloadPath = join(app.getAppPath(), 'dist/preload/desktopPetApi.js')
+  const preloadPath = join(app.getAppPath(), 'dist/preload/desktopPetApi.cjs')
   const rendererUrl = isDev ? 'http://127.0.0.1:5173' : `file://${join(app.getAppPath(), 'dist/renderer/index.html')}`
 
   const windowController = createWindowController(preloadPath, rendererUrl)
@@ -1444,15 +1482,15 @@ app.on('window-all-closed', (event) => {
 })
 ```
 
-- [ ] **Step 6: Run build**
+- [ ] **Step 6: Run Node typecheck**
 
 Run:
 
 ```bash
-npm run build
+npm run typecheck:node
 ```
 
-Expected: TypeScript and Vite build pass.
+Expected: main, preload, and shared TypeScript checks pass. Full renderer/Vite build is deferred until Task 8 creates the renderer entry point.
 
 - [ ] **Step 7: Commit Electron skeleton**
 

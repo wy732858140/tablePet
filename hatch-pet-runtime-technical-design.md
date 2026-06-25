@@ -528,7 +528,7 @@ src/
     settings/SettingsStore.ts
     ipc/IpcHandlers.ts
   preload/
-    desktopPetApi.ts
+    desktopPetApi.cts
   renderer/
     pet/PetCanvas.vue
     pet/AnimationCatalog.ts

@@ -12,7 +12,7 @@
       "@shared/*": ["src/shared/*"],
       "@renderer/*": ["src/renderer/*"]
     },
-    "types": ["vitest/globals", "node"]
+    "types": []
   },
-  "include": ["src/renderer/**/*.ts", "src/renderer/**/*.vue", "src/shared/**/*.ts", "tests/**/*.ts"]
+  "include": ["src/renderer/**/*.ts", "src/renderer/**/*.vue", "src/shared/**/*.ts"]
 }

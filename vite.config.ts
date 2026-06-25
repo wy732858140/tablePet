@@ -1,9 +1,15 @@
 import vue from '@vitejs/plugin-vue'
-import { defineConfig } from 'vitest/config'
+import { defineConfig, type UserConfig } from 'vite'
+import type { InlineConfig } from 'vitest'
 
-export default defineConfig({
+type ViteConfigWithVitest = UserConfig & {
+  test?: InlineConfig
+}
+
+const config = {
   plugins: [vue()],
   root: '.',
+  base: './',
   build: {
     outDir: 'dist/renderer',
     emptyOutDir: true
@@ -24,4 +30,6 @@ export default defineConfig({
     globals: true,
     include: ['tests/**/*.test.ts']
   }
-})
+} satisfies ViteConfigWithVitest
+
+export default defineConfig(config)
