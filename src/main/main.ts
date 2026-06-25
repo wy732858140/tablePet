@@ -34,6 +34,6 @@ void app.whenReady().then(() => {
   })
 })
 
-app.on('window-all-closed', (event?: { preventDefault: () => void }) => {
-  event?.preventDefault()
+app.on('window-all-closed', () => {
+  // Keep the tray app running.
 })
