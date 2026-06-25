@@ -66,6 +66,20 @@ describe('PetLibraryStore', () => {
     expect(backups).toHaveLength(1)
   })
 
+  it.each([
+    ['missing required pet fields', { currentPetId: null, pets: [{ id: 'momo' }] }],
+    ['invalid pet status', { currentPetId: null, pets: [{ ...createPet('momo'), status: 'pending' }] }],
+    ['empty pet id', { currentPetId: null, pets: [createPet('')] }],
+    ['duplicate pet ids', { currentPetId: 'momo', pets: [createPet('momo'), createPet('momo')] }]
+  ])('backs up library JSON with malformed pet entries and starts empty: %s', async (_caseName, libraryJson) => {
+    const dir = await mkdtemp(join(tmpdir(), 'pet-library-'))
+    await writeFile(join(dir, 'library.json'), JSON.stringify(libraryJson))
+    const store = createPetLibraryStore(dir)
+    await expect(store.load()).resolves.toEqual({ currentPetId: null, pets: [] })
+    const backups = (await readdir(dir)).filter((file) => /^library\.corrupt\.\d+\.json$/.test(file))
+    expect(backups).toHaveLength(1)
+  })
+
   it('backs up library JSON with a missing current pet and starts empty', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'pet-library-'))
     await writeFile(

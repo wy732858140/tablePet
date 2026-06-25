@@ -5,6 +5,24 @@ import type { Settings } from '../../shared/types.js'
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
+const isFiniteNumber = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)
+
+const normalizePosition = (value: unknown): Settings['petWindow']['position'] => {
+  if (value === null) {
+    return null
+  }
+  if (isRecord(value) && isFiniteNumber(value.x) && isFiniteNumber(value.y)) {
+    return { x: value.x, y: value.y }
+  }
+  return null
+}
+
+const normalizeScale = (value: unknown, fallback: number): number =>
+  isFiniteNumber(value) && value > 0 ? value : fallback
+
+const normalizeBoolean = (value: unknown, fallback: boolean): boolean =>
+  typeof value === 'boolean' ? value : fallback
+
 const defaultSettings = (): Settings => ({
   petWindow: {
     position: null,
@@ -27,8 +45,15 @@ const normalizeSettings = (value: unknown): Settings => {
   const behavior = isRecord(value.behavior) ? (value.behavior as Partial<Settings['behavior']>) : {}
 
   return {
-    petWindow: { ...defaults.petWindow, ...petWindow },
-    behavior: { ...defaults.behavior, ...behavior }
+    petWindow: {
+      position: normalizePosition(petWindow.position),
+      scale: normalizeScale(petWindow.scale, defaults.petWindow.scale),
+      alwaysOnTop: normalizeBoolean(petWindow.alwaysOnTop, defaults.petWindow.alwaysOnTop),
+      visibleOnLaunch: normalizeBoolean(petWindow.visibleOnLaunch, defaults.petWindow.visibleOnLaunch)
+    },
+    behavior: {
+      quietMode: normalizeBoolean(behavior.quietMode, defaults.behavior.quietMode)
+    }
   }
 }
 

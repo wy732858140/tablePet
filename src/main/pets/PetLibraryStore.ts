@@ -7,6 +7,40 @@ const emptyLibrary = (): PetLibrary => ({ currentPetId: null, pets: [] })
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
+const isNonEmptyString = (value: unknown): value is string => typeof value === 'string' && value.trim().length > 0
+
+const isStatus = (value: unknown): value is PetLibraryEntry['status'] => value === 'ok' || value === 'error'
+
+const normalizePetEntry = (value: unknown): PetLibraryEntry | null => {
+  if (!isRecord(value)) {
+    return null
+  }
+
+  if (
+    !isNonEmptyString(value.id) ||
+    !isNonEmptyString(value.displayName) ||
+    typeof value.description !== 'string' ||
+    !isNonEmptyString(value.packageDir) ||
+    !isNonEmptyString(value.spritesheetPath) ||
+    !isNonEmptyString(value.sourcePath) ||
+    !isNonEmptyString(value.importedAt) ||
+    !isStatus(value.status)
+  ) {
+    return null
+  }
+
+  return {
+    id: value.id,
+    displayName: value.displayName,
+    description: value.description,
+    packageDir: value.packageDir,
+    spritesheetPath: value.spritesheetPath,
+    sourcePath: value.sourcePath,
+    importedAt: value.importedAt,
+    status: value.status
+  }
+}
+
 const normalizeLibrary = (value: unknown): PetLibrary | null => {
   if (!isRecord(value) || !Array.isArray(value.pets)) {
     return null
@@ -17,17 +51,24 @@ const normalizeLibrary = (value: unknown): PetLibrary | null => {
     return null
   }
 
-  if (!value.pets.every((pet) => isRecord(pet) && typeof pet.id === 'string')) {
+  const pets = value.pets.map(normalizePetEntry)
+  if (pets.some((pet) => pet === null)) {
     return null
   }
 
-  if (typeof currentPetId === 'string' && !value.pets.some((pet) => pet.id === currentPetId)) {
+  const petEntries = pets as PetLibraryEntry[]
+  const petIds = new Set(petEntries.map((pet) => pet.id))
+  if (petIds.size !== petEntries.length) {
+    return null
+  }
+
+  if (typeof currentPetId === 'string' && !petIds.has(currentPetId)) {
     return null
   }
 
   return {
     currentPetId,
-    pets: value.pets as PetLibraryEntry[]
+    pets: petEntries
   }
 }
 

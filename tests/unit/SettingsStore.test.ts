@@ -45,4 +45,32 @@ describe('SettingsStore', () => {
       behavior: { quietMode: false }
     })
   })
+
+  it('falls back per field for invalid settings values', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'settings-store-'))
+    await writeFile(
+      join(dir, 'settings.json'),
+      JSON.stringify({
+        petWindow: {
+          position: { x: 10, y: 'bad' },
+          scale: 'large',
+          alwaysOnTop: 'yes',
+          visibleOnLaunch: false
+        },
+        behavior: {
+          quietMode: 'false'
+        }
+      })
+    )
+    const store = createSettingsStore(dir)
+    await expect(store.load()).resolves.toEqual({
+      petWindow: {
+        position: null,
+        scale: 1.5,
+        alwaysOnTop: true,
+        visibleOnLaunch: false
+      },
+      behavior: { quietMode: false }
+    })
+  })
 })
