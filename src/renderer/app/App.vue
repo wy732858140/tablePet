@@ -16,14 +16,16 @@ const engine = createBehaviorEngine()
 
 let pointerActive = false
 let didDrag = false
+let pointerStart: { x: number; y: number } | null = null
 let unsubscribeImportRequest: (() => void) | null = null
+const dragThresholdPx = 4
 
 const viewState = computed<PetViewState>(() => {
-  if (currentPet.value) {
-    return { kind: 'loaded', pet: currentPet.value }
-  }
   if (errorMessage.value) {
     return { kind: 'error', message: errorMessage.value }
+  }
+  if (currentPet.value) {
+    return { kind: 'loaded', pet: currentPet.value }
   }
   return emptyPetView()
 })
@@ -86,6 +88,7 @@ const importPet = async () => {
 const onPointerDown = (event: PointerEvent) => {
   pointerActive = true
   didDrag = false
+  pointerStart = { x: event.screenX, y: event.screenY }
   const target = event.currentTarget as HTMLElement | null
   target?.setPointerCapture(event.pointerId)
   engine.dragStart({ x: event.screenX, y: event.screenY })
@@ -94,6 +97,11 @@ const onPointerDown = (event: PointerEvent) => {
 
 const onPointerMove = (event: PointerEvent) => {
   if (!pointerActive) return
+  const deltaX = event.screenX - (pointerStart?.x ?? event.screenX)
+  const deltaY = event.screenY - (pointerStart?.y ?? event.screenY)
+  if (!didDrag && Math.hypot(deltaX, deltaY) < dragThresholdPx) {
+    return
+  }
   didDrag = true
   engine.dragMove({ x: event.screenX, y: event.screenY })
   syncAnimation()
@@ -103,8 +111,11 @@ const onPointerMove = (event: PointerEvent) => {
 const onPointerUp = (event: PointerEvent) => {
   if (!pointerActive) return
   pointerActive = false
+  pointerStart = null
   const target = event.currentTarget as HTMLElement | null
-  target?.releasePointerCapture(event.pointerId)
+  if (target?.hasPointerCapture(event.pointerId)) {
+    target.releasePointerCapture(event.pointerId)
+  }
   engine.dragEnd()
   syncAnimation()
 }
@@ -120,6 +131,12 @@ const onClick = () => {
 
 const onAnimationEnded = () => {
   engine.animationEnded()
+  syncAnimation()
+}
+
+const onPetLoadError = (message: string) => {
+  errorMessage.value = message
+  engine.fail()
   syncAnimation()
 }
 
@@ -154,7 +171,7 @@ onUnmounted(cleanup)
       @pointercancel="onPointerUp"
       @click="onClick"
     >
-      <PetCanvas :pet="loadedPet" :state="animation" :scale="scale" />
+      <PetCanvas :pet="loadedPet" :state="animation" :scale="scale" @load-error="onPetLoadError" />
     </div>
     <section v-else class="welcome">
       <SettingsPanel />
@@ -180,11 +197,14 @@ onUnmounted(cleanup)
 }
 
 .welcome {
-  width: min(280px, calc(100vw - 24px));
+  box-sizing: border-box;
+  width: calc(100vw - 24px);
+  max-width: 280px;
   max-height: calc(100vh - 24px);
   margin: 12px;
   padding: 12px;
   overflow: auto;
+  overflow-wrap: anywhere;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.94);
   color: #1f2328;

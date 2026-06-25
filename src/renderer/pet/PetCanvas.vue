@@ -2,11 +2,16 @@
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 import type { HatchPetState, LoadedPet } from '@shared/types'
 import { getAnimationDefinition, getFrameSourceRect, HATCH_PET_V1 } from './AnimationCatalog'
+import { toFileUrl } from './fileUrl'
 
 const props = defineProps<{
   pet: LoadedPet
   state: HatchPetState
   scale: number
+}>()
+
+const emit = defineEmits<{
+  'load-error': [message: string]
 }>()
 
 const canvas = ref<HTMLCanvasElement | null>(null)
@@ -147,13 +152,15 @@ const loadImage = async () => {
   clearCanvas()
 
   const nextImage = new Image()
-  nextImage.src = `file://${props.pet.spritesheetPath}`
+  nextImage.src = toFileUrl(props.pet.spritesheetPath)
 
   try {
     await nextImage.decode()
   } catch {
     if (token !== loadToken) return
-    loadError.value = 'Unable to load pet spritesheet.'
+    const message = 'Unable to load pet spritesheet.'
+    loadError.value = message
+    emit('load-error', message)
     clearCanvas()
     return
   }

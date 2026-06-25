@@ -15,8 +15,13 @@ defineProps<{ pets: PetLibraryEntry[] }>()
 </template>
 
 <style scoped>
+.panel {
+  overflow-wrap: anywhere;
+}
+
 .pet-list {
   margin: 0;
   padding-left: 18px;
+  overflow-wrap: anywhere;
 }
 </style>
