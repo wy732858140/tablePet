@@ -6,6 +6,40 @@ import type { HatchPetManifest, ImportResult, Size } from '../../shared/types.js
 
 type ImageInspector = (path: string) => Promise<Size>
 
+const HATCH_PET_SPRITESHEET = 'spritesheet.webp'
+const SAFE_PET_ID = /^[a-zA-Z0-9_-]+$/
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+
+const isNonEmptyString = (value: unknown): value is string => typeof value === 'string' && value.trim().length > 0
+
+const normalizeManifest = (value: unknown): HatchPetManifest | ImportResult => {
+  if (!isRecord(value)) {
+    return { ok: false, code: 'invalid_manifest_json', message: 'pet.json is not valid JSON.' }
+  }
+
+  if (!isNonEmptyString(value.id) || !SAFE_PET_ID.test(value.id)) {
+    return { ok: false, code: 'missing_id', message: 'pet.json must include an id.' }
+  }
+
+  if (value.spritesheetPath !== HATCH_PET_SPRITESHEET) {
+    return { ok: false, code: 'missing_spritesheet_path', message: 'pet.json must include spritesheetPath.' }
+  }
+
+  const manifest: HatchPetManifest = {
+    id: value.id,
+    spritesheetPath: HATCH_PET_SPRITESHEET
+  }
+  if (isNonEmptyString(value.displayName)) {
+    manifest.displayName = value.displayName
+  }
+  if (typeof value.description === 'string') {
+    manifest.description = value.description
+  }
+  return manifest
+}
+
 const defaultImageInspector: ImageInspector = async (path) => {
   const size = imageSize(path)
   if (!size.width || !size.height) {
@@ -20,10 +54,10 @@ export const createPetPackageImporter = (
 ) => {
   const importFolder = async (sourceDir: string): Promise<ImportResult> => {
     const manifestPath = join(sourceDir, 'pet.json')
-    let manifest: HatchPetManifest
+    let parsedManifest: unknown
 
     try {
-      manifest = JSON.parse(await readFile(manifestPath, 'utf8')) as HatchPetManifest
+      parsedManifest = JSON.parse(await readFile(manifestPath, 'utf8'))
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
         return { ok: false, code: 'missing_manifest', message: 'pet.json was not found in the selected folder.' }
@@ -31,18 +65,19 @@ export const createPetPackageImporter = (
       return { ok: false, code: 'invalid_manifest_json', message: 'pet.json is not valid JSON.' }
     }
 
-    if (!manifest.id) {
-      return { ok: false, code: 'missing_id', message: 'pet.json must include an id.' }
-    }
-    if (!manifest.spritesheetPath) {
-      return { ok: false, code: 'missing_spritesheet_path', message: 'pet.json must include spritesheetPath.' }
+    const manifest = normalizeManifest(parsedManifest)
+    if ('ok' in manifest) {
+      return manifest
     }
 
     const sourceSpritesheet = join(sourceDir, manifest.spritesheetPath)
     let size: Size
     try {
       size = await inspectImage(sourceSpritesheet)
-    } catch {
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        return { ok: false, code: 'missing_spritesheet', message: 'spritesheet.webp was not found in the selected folder.' }
+      }
       return { ok: false, code: 'invalid_image', message: 'spritesheet could not be read as an image.' }
     }
 
