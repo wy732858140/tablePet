@@ -4,6 +4,33 @@ import type { PetLibrary, PetLibraryEntry } from '../../shared/types.js'
 
 const emptyLibrary = (): PetLibrary => ({ currentPetId: null, pets: [] })
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+
+const normalizeLibrary = (value: unknown): PetLibrary | null => {
+  if (!isRecord(value) || !Array.isArray(value.pets)) {
+    return null
+  }
+
+  const currentPetId = value.currentPetId
+  if (currentPetId !== null && typeof currentPetId !== 'string') {
+    return null
+  }
+
+  if (!value.pets.every((pet) => isRecord(pet) && typeof pet.id === 'string')) {
+    return null
+  }
+
+  if (typeof currentPetId === 'string' && !value.pets.some((pet) => pet.id === currentPetId)) {
+    return null
+  }
+
+  return {
+    currentPetId,
+    pets: value.pets as PetLibraryEntry[]
+  }
+}
+
 export const createPetLibraryStore = (appDataDir: string) => {
   const libraryPath = join(appDataDir, 'library.json')
 
@@ -15,7 +42,11 @@ export const createPetLibraryStore = (appDataDir: string) => {
 
   const load = async (): Promise<PetLibrary> => {
     try {
-      return JSON.parse(await readFile(libraryPath, 'utf8')) as PetLibrary
+      const library = normalizeLibrary(JSON.parse(await readFile(libraryPath, 'utf8')))
+      if (!library) {
+        throw new Error('Invalid pet library')
+      }
+      return library
     } catch (error) {
       const library = emptyLibrary()
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
@@ -28,8 +59,12 @@ export const createPetLibraryStore = (appDataDir: string) => {
 
   const upsert = async (entry: PetLibraryEntry): Promise<PetLibrary> => {
     const library = await load()
-    const pets = library.pets.filter((pet) => pet.id !== entry.id)
-    const next = { currentPetId: entry.id, pets: [...pets, entry] }
+    const petIndex = library.pets.findIndex((pet) => pet.id === entry.id)
+    const pets =
+      petIndex === -1
+        ? [...library.pets, entry]
+        : library.pets.map((pet, index) => (index === petIndex ? entry : pet))
+    const next = { currentPetId: entry.id, pets }
     return save(next)
   }
 

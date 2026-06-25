@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, readdir, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -27,5 +27,22 @@ describe('SettingsStore', () => {
     expect(settings.petWindow.scale).toBe(1.5)
     const files = await readFile(join(dir, 'settings.json'), 'utf8')
     expect(JSON.parse(files).petWindow.scale).toBe(1.5)
+    const backups = (await readdir(dir)).filter((file) => /^settings\.corrupt\.\d+\.json$/.test(file))
+    expect(backups).toHaveLength(1)
+  })
+
+  it('fills nested defaults for partial settings', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'settings-store-'))
+    await writeFile(join(dir, 'settings.json'), JSON.stringify({ petWindow: { scale: 2 } }))
+    const store = createSettingsStore(dir)
+    await expect(store.load()).resolves.toEqual({
+      petWindow: {
+        position: null,
+        scale: 2,
+        alwaysOnTop: true,
+        visibleOnLaunch: true
+      },
+      behavior: { quietMode: false }
+    })
   })
 })
