@@ -14,8 +14,8 @@
     "typecheck:test": "tsc -p tsconfig.test.json --noEmit",
     "typecheck:node": "tsc -p tsconfig.node.json --noEmit",
     "test:watch": "vitest",
-    "package": "npm run build && electron-builder --dir",
-    "dist": "npm run build && electron-builder"
+    "package": "npm run build && electron-builder --dir -c.electronDist=node_modules/electron/dist",
+    "dist": "npm run build && electron-builder -c.electronDist=node_modules/electron/dist"
   },
   "engines": {
     "node": ">=20.19.0",
