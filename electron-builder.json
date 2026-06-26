@@ -24,8 +24,14 @@
     "target": ["dmg"],
     "category": "public.app-category.utilities"
   },
+  "dmg": {
+    "artifactName": "${productName}-mac-${arch}-${version}.${ext}"
+  },
   "win": {
     "icon": "assets/icons/app-icon.ico",
     "target": ["nsis"]
+  },
+  "nsis": {
+    "artifactName": "${productName}-windows-${arch}-${version}.${ext}"
   }
 }

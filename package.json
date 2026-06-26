@@ -14,8 +14,12 @@
     "typecheck:test": "tsc -p tsconfig.test.json --noEmit",
     "typecheck:node": "tsc -p tsconfig.node.json --noEmit",
     "test:watch": "vitest",
-    "package": "npm run build && electron-builder --dir -c.electronDist=node_modules/electron/dist",
-    "dist": "npm run build && electron-builder -c.electronDist=node_modules/electron/dist"
+    "package": "npm run package:mac",
+    "package:mac": "npm run build && electron-builder --mac --dir -c.electronDist=node_modules/electron/dist -c.directories.output=release/mac",
+    "package:win": "npm run build && electron-builder --win --dir -c.electronDist=node_modules/electron/dist -c.directories.output=release/windows",
+    "dist": "npm run dist:mac",
+    "dist:mac": "npm run build && electron-builder --mac -c.electronDist=node_modules/electron/dist -c.directories.output=release/mac",
+    "dist:win": "npm run build && electron-builder --win -c.electronDist=node_modules/electron/dist -c.directories.output=release/windows"
   },
   "engines": {
     "node": ">=20.19.0",

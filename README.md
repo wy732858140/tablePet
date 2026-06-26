@@ -15,10 +15,10 @@ macOS 和 Windows 上的透明桌宠窗口、本地宠物库、窗口控制、�
 ### 下载
 
 - 最新版本: [GitHub Releases](https://github.com/wy732858140/tablePet/releases/latest)
-- macOS Apple Silicon: [TablePet-0.1.0-arm64.dmg](https://github.com/wy732858140/tablePet/releases/latest/download/TablePet-0.1.0-arm64.dmg)
-- SHA-256: `cb81d01493f82e75f86478055c7af75f0179acb4e877a28bafdb2bf53d4eca2c`
+- macOS Apple Silicon: [TablePet-mac-arm64-0.1.0.dmg](https://github.com/wy732858140/tablePet/releases/latest/download/TablePet-mac-arm64-0.1.0.dmg)
+- SHA-256: `3a22c54371e3566375d5543b9e261d2173286a6b150ccdaf1e82136c6399b912`
 
-当前 release 产物为未签名的 macOS arm64 安装包。Windows 安装包需要在 Windows 环境或 CI 中单独构建。
+当前 release 产物为未签名的 macOS arm64 安装包, 位于 `release/mac/`。Windows 安装包会输出到 `release/windows/`, 需要在 Windows 环境或 CI 中单独构建。
 
 ### 项目定位
 
@@ -78,10 +78,16 @@ npm run build
 npm run package
 ```
 
-生成安装包:
+生成 macOS 安装包:
 
 ```bash
-npm run dist
+npm run dist:mac
+```
+
+生成 Windows 安装包:
+
+```bash
+npm run dist:win
 ```
 
 ### 支持的宠物包格式
@@ -138,10 +144,10 @@ tests/unit/      单元测试
 ### Download
 
 - Latest release: [GitHub Releases](https://github.com/wy732858140/tablePet/releases/latest)
-- macOS Apple Silicon: [TablePet-0.1.0-arm64.dmg](https://github.com/wy732858140/tablePet/releases/latest/download/TablePet-0.1.0-arm64.dmg)
-- SHA-256: `cb81d01493f82e75f86478055c7af75f0179acb4e877a28bafdb2bf53d4eca2c`
+- macOS Apple Silicon: [TablePet-mac-arm64-0.1.0.dmg](https://github.com/wy732858140/tablePet/releases/latest/download/TablePet-mac-arm64-0.1.0.dmg)
+- SHA-256: `3a22c54371e3566375d5543b9e261d2173286a6b150ccdaf1e82136c6399b912`
 
-The current release artifact is an unsigned macOS arm64 installer. Windows installers should be built separately on Windows or in CI.
+The current release artifact is an unsigned macOS arm64 installer in `release/mac/`. Windows installers output to `release/windows/` and should be built separately on Windows or in CI.
 
 ### What It Is
 
@@ -202,10 +208,16 @@ Create a local packaged app directory:
 npm run package
 ```
 
-Create installers:
+Create the macOS installer:
 
 ```bash
-npm run dist
+npm run dist:mac
+```
+
+Create the Windows installer:
+
+```bash
+npm run dist:win
 ```
 
 ### Supported Pet Package
