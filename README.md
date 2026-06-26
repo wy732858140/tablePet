@@ -12,6 +12,14 @@ macOS 和 Windows 上的透明桌宠窗口、本地宠物库、窗口控制、�
 
 ## 中文说明
 
+### 下载
+
+- 最新版本: [GitHub Releases](https://github.com/wy732858140/tablePet/releases/latest)
+- macOS Apple Silicon: [TablePet-0.1.0-arm64.dmg](https://github.com/wy732858140/tablePet/releases/latest/download/TablePet-0.1.0-arm64.dmg)
+- SHA-256: `cb81d01493f82e75f86478055c7af75f0179acb4e877a28bafdb2bf53d4eca2c`
+
+当前 release 产物为未签名的 macOS arm64 安装包。Windows 安装包需要在 Windows 环境或 CI 中单独构建。
+
 ### 项目定位
 
 TablePet 的目标是先把桌宠的“运行端”做稳: 导入已有的 Hatch Pet 宠物包,
@@ -126,6 +134,14 @@ tests/unit/      单元测试
 ---
 
 ## English
+
+### Download
+
+- Latest release: [GitHub Releases](https://github.com/wy732858140/tablePet/releases/latest)
+- macOS Apple Silicon: [TablePet-0.1.0-arm64.dmg](https://github.com/wy732858140/tablePet/releases/latest/download/TablePet-0.1.0-arm64.dmg)
+- SHA-256: `cb81d01493f82e75f86478055c7af75f0179acb4e877a28bafdb2bf53d4eca2c`
+
+The current release artifact is an unsigned macOS arm64 installer. Windows installers should be built separately on Windows or in CI.
 
 ### What It Is
 
