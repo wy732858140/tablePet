@@ -5,10 +5,11 @@ import { describe, expect, it, vi } from 'vitest'
 import { installDefaultPets } from '../../src/main/pets/DefaultPetInstaller'
 import type { ImportResult, PetLibrary, PetLibraryEntry } from '../../src/shared/types'
 
+const BUILT_IN_PET_IDS = ['bobo', 'doge', 'fubao', 'kun-like']
+
 const makeDefaultPetsDir = async () => {
   const dir = await mkdtemp(join(tmpdir(), 'default-pets-'))
-  await mkdir(join(dir, 'fubao'))
-  await mkdir(join(dir, 'kun-like'))
+  await Promise.all(BUILT_IN_PET_IDS.map((id) => mkdir(join(dir, id))))
   await writeFile(join(dir, '.DS_Store'), '')
   return dir
 }
@@ -56,13 +57,13 @@ describe('installDefaultPets', () => {
 
     const result = await installDefaultPets(defaultPetsDir, importer, store)
 
-    expect(importer.importFolder.mock.calls.map(([folder]) => basename(folder))).toEqual(['fubao', 'kun-like'])
-    expect(store.upsert.mock.calls.map(([entry]) => entry.id)).toEqual(['fubao', 'kun-like'])
+    expect(importer.importFolder.mock.calls.map(([folder]) => basename(folder))).toEqual(BUILT_IN_PET_IDS)
+    expect(store.upsert.mock.calls.map(([entry]) => entry.id)).toEqual(BUILT_IN_PET_IDS)
     expect(store.setCurrentPet).not.toHaveBeenCalled()
     const savedLibrary = store.save.mock.calls[0]?.[0]
     expect(savedLibrary?.currentPetId).toBeNull()
-    expect(savedLibrary?.pets.map((pet) => pet.id)).toEqual(['fubao', 'kun-like'])
-    expect(result).toEqual({ imported: ['fubao', 'kun-like'], failed: [] })
+    expect(savedLibrary?.pets.map((pet) => pet.id)).toEqual(BUILT_IN_PET_IDS)
+    expect(result).toEqual({ imported: BUILT_IN_PET_IDS, failed: [] })
   })
 
   it('restores the existing current pet after installing bundled pets', async () => {
