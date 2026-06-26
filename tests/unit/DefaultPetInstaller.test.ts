@@ -26,7 +26,10 @@ const makePet = (id: string): PetLibraryEntry => ({
 
 const makeStore = (library: PetLibrary) => ({
   load: vi.fn(async () => library),
-  save: vi.fn(),
+  save: vi.fn(async (next: PetLibrary) => {
+    library = next
+    return library
+  }),
   upsert: vi.fn(async (entry: PetLibraryEntry) => {
     library.pets = [...library.pets.filter((pet) => pet.id !== entry.id), entry]
     library.currentPetId = entry.id
@@ -46,7 +49,7 @@ const makeImporter = () => ({
 })
 
 describe('installDefaultPets', () => {
-  it('imports bundled pet directories in stable order and selects the first default pet', async () => {
+  it('imports bundled pet directories in stable order without auto-selecting a default pet', async () => {
     const defaultPetsDir = await makeDefaultPetsDir()
     const importer = makeImporter()
     const store = makeStore({ currentPetId: null, pets: [] })
@@ -55,7 +58,10 @@ describe('installDefaultPets', () => {
 
     expect(importer.importFolder.mock.calls.map(([folder]) => basename(folder))).toEqual(['fubao', 'kun-like'])
     expect(store.upsert.mock.calls.map(([entry]) => entry.id)).toEqual(['fubao', 'kun-like'])
-    expect(store.setCurrentPet).toHaveBeenCalledWith('fubao')
+    expect(store.setCurrentPet).not.toHaveBeenCalled()
+    const savedLibrary = store.save.mock.calls[0]?.[0]
+    expect(savedLibrary?.currentPetId).toBeNull()
+    expect(savedLibrary?.pets.map((pet) => pet.id)).toEqual(['fubao', 'kun-like'])
     expect(result).toEqual({ imported: ['fubao', 'kun-like'], failed: [] })
   })
 

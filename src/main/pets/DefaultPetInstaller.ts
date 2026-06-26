@@ -56,9 +56,11 @@ export const installDefaultPets = async (
     await libraryStore.upsert(toLibraryEntry(result.pet, defaultPetDir))
   }
 
-  const currentPetId = previousCurrentPetId ?? imported[0]
-  if (currentPetId) {
-    await libraryStore.setCurrentPet(currentPetId).catch(() => undefined)
+  if (previousCurrentPetId) {
+    await libraryStore.setCurrentPet(previousCurrentPetId).catch(() => undefined)
+  } else if (imported.length > 0) {
+    const installedLibrary = await libraryStore.load()
+    await libraryStore.save({ ...installedLibrary, currentPetId: null })
   }
 
   return { imported, failed }

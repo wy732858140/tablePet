@@ -2,6 +2,7 @@
   "appId": "com.tablepet.runtime",
   "productName": "TablePet",
   "directories": {
+    "buildResources": "assets",
     "output": "release"
   },
   "files": [
@@ -19,10 +20,12 @@
     }
   ],
   "mac": {
+    "icon": "assets/icons/app-icon.icns",
     "target": ["dmg"],
     "category": "public.app-category.utilities"
   },
   "win": {
+    "icon": "assets/icons/app-icon.ico",
     "target": ["nsis"]
   }
 }

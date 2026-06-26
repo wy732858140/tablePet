@@ -1,9 +1,15 @@
 import { BrowserWindow, screen } from 'electron'
-import type { Point } from '../../shared/types.js'
+import type { Point, Size } from '../../shared/types.js'
 
 export type WindowController = ReturnType<typeof createWindowController>
 
-export const createWindowController = (preloadPath: string, rendererUrl: string) => {
+const defaultPetWindowSize = (): Size => ({ width: 288, height: 312 })
+
+export const createWindowController = (
+  preloadPath: string,
+  rendererUrl: string,
+  initialSize: Size = defaultPetWindowSize()
+) => {
   let petWindow: BrowserWindow | null = null
 
   const getLivePetWindow = () => {
@@ -15,8 +21,8 @@ export const createWindowController = (preloadPath: string, rendererUrl: string)
 
   const createPetWindow = () => {
     const window = new BrowserWindow({
-      width: 288,
-      height: 312,
+      width: Math.round(initialSize.width),
+      height: Math.round(initialSize.height),
       frame: false,
       transparent: true,
       resizable: false,
@@ -48,6 +54,13 @@ export const createWindowController = (preloadPath: string, rendererUrl: string)
     getLivePetWindow()?.setPosition(Math.round(point.x), Math.round(point.y))
   }
 
+  const setSize = (size: Size) => {
+    const window = getLivePetWindow()
+    if (!window) return
+    window.setSize(Math.round(size.width), Math.round(size.height))
+    ensureVisible()
+  }
+
   const close = () => {
     getLivePetWindow()?.close()
   }
@@ -72,6 +85,7 @@ export const createWindowController = (preloadPath: string, rendererUrl: string)
     },
     hide: () => getLivePetWindow()?.hide(),
     close,
+    setSize,
     setPosition,
     setClickThrough,
     ensureVisible

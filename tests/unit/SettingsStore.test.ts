@@ -46,6 +46,17 @@ describe('SettingsStore', () => {
     })
   })
 
+  it.each([
+    ['small', 0.2, 0.75],
+    ['large', 9, 2.25]
+  ])('clamps %s persisted scale to the supported pet scale boundary', async (_label, persistedScale, expectedScale) => {
+    const dir = await mkdtemp(join(tmpdir(), 'settings-store-'))
+    await writeFile(join(dir, 'settings.json'), JSON.stringify({ petWindow: { scale: persistedScale } }))
+    const store = createSettingsStore(dir)
+
+    expect((await store.load()).petWindow.scale).toBe(expectedScale)
+  })
+
   it('falls back per field for invalid settings values', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'settings-store-'))
     await writeFile(

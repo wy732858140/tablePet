@@ -1,5 +1,6 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { clampPetScale, PET_SCALE_DEFAULT } from '../../shared/petWindowScale.js'
 import type { Settings } from '../../shared/types.js'
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -18,7 +19,7 @@ const normalizePosition = (value: unknown): Settings['petWindow']['position'] =>
 }
 
 const normalizeScale = (value: unknown, fallback: number): number =>
-  isFiniteNumber(value) && value > 0 ? value : fallback
+  isFiniteNumber(value) && value > 0 ? clampPetScale(value) : fallback
 
 const normalizeBoolean = (value: unknown, fallback: boolean): boolean =>
   typeof value === 'boolean' ? value : fallback
@@ -26,7 +27,7 @@ const normalizeBoolean = (value: unknown, fallback: boolean): boolean =>
 const defaultSettings = (): Settings => ({
   petWindow: {
     position: null,
-    scale: 1.5,
+    scale: PET_SCALE_DEFAULT,
     alwaysOnTop: true,
     visibleOnLaunch: true
   },

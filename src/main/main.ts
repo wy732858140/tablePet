@@ -8,6 +8,7 @@ import { createPetPackageImporter } from './pets/PetPackageImporter.js'
 import { createSettingsStore } from './settings/SettingsStore.js'
 import { createTrayController } from './tray/TrayController.js'
 import { createWindowController } from './window/WindowController.js'
+import { MENU_WINDOW_SIZE } from '../shared/petWindowScale.js'
 
 const isDev = !app.isPackaged
 
@@ -21,14 +22,16 @@ void app.whenReady().then(async () => {
     : pathToFileURL(join(app.getAppPath(), 'dist/renderer/index.html')).toString()
   const defaultPetsDir = isDev ? join(app.getAppPath(), 'pets') : join(process.resourcesPath, 'pets')
 
-  const windowController = createWindowController(preloadPath, rendererUrl)
   const importer = createPetPackageImporter(appDataDir)
   const libraryStore = createPetLibraryStore(appDataDir)
   const settingsStore = createSettingsStore(appDataDir)
+  const windowController = createWindowController(preloadPath, rendererUrl, MENU_WINDOW_SIZE)
 
   await installDefaultPets(defaultPetsDir, importer, libraryStore)
   windowController.createPetWindow()
-  registerIpcHandlers(windowController, importer, libraryStore, settingsStore)
+  registerIpcHandlers(windowController, importer, libraryStore, settingsStore, {
+    quit: () => app.quit()
+  })
   trayController = createTrayController({
     importPet: () => windowController.getPetWindow()?.webContents.send('ui:import-pet'),
     showPet: () => windowController.show(),
