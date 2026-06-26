@@ -16,7 +16,7 @@ macOS 和 Windows 上的透明桌宠窗口、本地宠物库、窗口控制、�
 
 - 最新版本: [GitHub Releases](https://github.com/wy732858140/tablePet/releases/latest)
 - macOS Apple Silicon: [TablePet-mac-arm64-0.1.0.dmg](https://github.com/wy732858140/tablePet/releases/latest/download/TablePet-mac-arm64-0.1.0.dmg)
-- SHA-256: `3a22c54371e3566375d5543b9e261d2173286a6b150ccdaf1e82136c6399b912`
+- SHA-256: `324db7aad7e23cb944a795cd07870996dc93c72b2fc2a71b4f28572c38a6baac`
 
 当前 release 产物为未签名的 macOS arm64 安装包, 位于 `release/mac/`。Windows 安装包会输出到 `release/windows/`, 需要在 Windows 环境或 CI 中单独构建。
 
@@ -145,7 +145,7 @@ tests/unit/      单元测试
 
 - Latest release: [GitHub Releases](https://github.com/wy732858140/tablePet/releases/latest)
 - macOS Apple Silicon: [TablePet-mac-arm64-0.1.0.dmg](https://github.com/wy732858140/tablePet/releases/latest/download/TablePet-mac-arm64-0.1.0.dmg)
-- SHA-256: `3a22c54371e3566375d5543b9e261d2173286a6b150ccdaf1e82136c6399b912`
+- SHA-256: `324db7aad7e23cb944a795cd07870996dc93c72b2fc2a71b4f28572c38a6baac`
 
 The current release artifact is an unsigned macOS arm64 installer in `release/mac/`. Windows installers output to `release/windows/` and should be built separately on Windows or in CI.
 
