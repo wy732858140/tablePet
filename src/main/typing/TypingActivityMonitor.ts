@@ -5,20 +5,22 @@ export type KeyboardActivityHook = {
 }
 
 type HookLoader = () => Promise<KeyboardActivityHook>
-type AccessGuard = () => boolean | Promise<boolean>
+type AccessGuard = (prompt: boolean) => boolean | Promise<boolean>
 
 const loadUiohook: HookLoader = async () => {
   const module = (await import('uiohook-napi')) as { uIOhook: KeyboardActivityHook }
   return module.uIOhook
 }
 
-const canStartNativeHook: AccessGuard = async () => {
+const canStartNativeHook: AccessGuard = async (prompt) => {
   if (process.platform !== 'darwin') {
     return true
   }
   const { systemPreferences } = await import('electron')
-  return systemPreferences.isTrustedAccessibilityClient(false)
+  return systemPreferences.isTrustedAccessibilityClient(prompt)
 }
+
+const accessRetryMs = 2_000
 
 export const createTypingActivityMonitor = (
   emitTypingActivity: () => void,
@@ -27,14 +29,31 @@ export const createTypingActivityMonitor = (
 ) => {
   let hook: KeyboardActivityHook | null = null
   let started = false
+  let retryTimer: ReturnType<typeof setTimeout> | null = null
 
-  const start = async (): Promise<boolean> => {
+  const clearRetryTimer = () => {
+    if (retryTimer === null) return
+    clearTimeout(retryTimer)
+    retryTimer = null
+  }
+
+  const scheduleAccessRetry = () => {
+    if (retryTimer !== null) return
+    retryTimer = setTimeout(() => {
+      retryTimer = null
+      void start(false)
+    }, accessRetryMs)
+  }
+
+  const start = async (promptForAccess = true): Promise<boolean> => {
     if (started) return true
 
     try {
-      if (!(await canStart())) {
+      if (!(await canStart(promptForAccess))) {
+        scheduleAccessRetry()
         return false
       }
+      clearRetryTimer()
       hook = await loadHook()
       hook.on('keydown', () => {
         emitTypingActivity()
@@ -51,6 +70,7 @@ export const createTypingActivityMonitor = (
   }
 
   const stop = () => {
+    clearRetryTimer()
     if (!started || !hook) return
     hook.stop()
     hook = null

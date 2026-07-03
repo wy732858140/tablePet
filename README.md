@@ -15,10 +15,10 @@ macOS 和 Windows 上的透明桌宠窗口、本地宠物库、窗口控制、�
 ### 下载
 
 - 最新版本: [GitHub Releases](https://github.com/wy732858140/tablePet/releases/latest)
-- macOS Apple Silicon: [TablePet-mac-arm64-0.1.2.dmg](https://github.com/wy732858140/tablePet/releases/latest/download/TablePet-mac-arm64-0.1.2.dmg)
-- Windows x64: [TablePet-windows-x64-0.1.2.exe](https://github.com/wy732858140/tablePet/releases/latest/download/TablePet-windows-x64-0.1.2.exe)
-- macOS SHA-256: `06d42c2e3a3279a1288c38f5af24a71a2f3b346921b54d663bded032e4e52770`
-- Windows SHA-256: `62fe89e3a4d996b0a1c087d58aceb1ed79df3486a855c7a72554505f8eb2b5fb`
+- macOS Apple Silicon: [TablePet-mac-arm64-0.1.3.dmg](https://github.com/wy732858140/tablePet/releases/latest/download/TablePet-mac-arm64-0.1.3.dmg)
+- Windows x64: [TablePet-windows-x64-0.1.3.exe](https://github.com/wy732858140/tablePet/releases/latest/download/TablePet-windows-x64-0.1.3.exe)
+- macOS SHA-256: `8d28b5b7d60ed63a479d7f82aad51c3290ee501a3b0d4cfac766cee3518c6902`
+- Windows SHA-256: `9fed3305751087740c8a3fa631365409bfef50368b049c6422b5fd542db5e974`
 
 当前 release 产物按平台分开: macOS 安装包位于 `release/mac/`, Windows 安装包位于 `release/windows/`。两个安装包均未签名。
 
@@ -146,10 +146,10 @@ tests/unit/      单元测试
 ### Download
 
 - Latest release: [GitHub Releases](https://github.com/wy732858140/tablePet/releases/latest)
-- macOS Apple Silicon: [TablePet-mac-arm64-0.1.2.dmg](https://github.com/wy732858140/tablePet/releases/latest/download/TablePet-mac-arm64-0.1.2.dmg)
-- Windows x64: [TablePet-windows-x64-0.1.2.exe](https://github.com/wy732858140/tablePet/releases/latest/download/TablePet-windows-x64-0.1.2.exe)
-- macOS SHA-256: `06d42c2e3a3279a1288c38f5af24a71a2f3b346921b54d663bded032e4e52770`
-- Windows SHA-256: `62fe89e3a4d996b0a1c087d58aceb1ed79df3486a855c7a72554505f8eb2b5fb`
+- macOS Apple Silicon: [TablePet-mac-arm64-0.1.3.dmg](https://github.com/wy732858140/tablePet/releases/latest/download/TablePet-mac-arm64-0.1.3.dmg)
+- Windows x64: [TablePet-windows-x64-0.1.3.exe](https://github.com/wy732858140/tablePet/releases/latest/download/TablePet-windows-x64-0.1.3.exe)
+- macOS SHA-256: `8d28b5b7d60ed63a479d7f82aad51c3290ee501a3b0d4cfac766cee3518c6902`
+- Windows SHA-256: `9fed3305751087740c8a3fa631365409bfef50368b049c6422b5fd542db5e974`
 
 Current release artifacts are separated by platform: the macOS installer is in `release/mac/`, and the Windows installer is in `release/windows/`. Both installers are unsigned.
 
