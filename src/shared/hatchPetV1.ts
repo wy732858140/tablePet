@@ -12,16 +12,33 @@ export const HATCH_PET_V1_CELL = {
   height: 208
 } as const
 
+const toCalmTempoMs = (duration: number): number => Math.round((duration * 1.3) / 10) * 10
+const toAmbientTempoMs = (duration: number): number => Math.round((duration * 1.5) / 10) * 10
+
+const calmTempo = (durations: number[]): number[] => durations.map(toCalmTempoMs)
+const ambientTempo = (durations: number[]): number[] => durations.map(toAmbientTempoMs)
+
 const repeated = (duration: number, count: number, last: number): number[] => {
-  return Array.from({ length: count }, (_, index) => (index === count - 1 ? last : duration))
+  return calmTempo(Array.from({ length: count }, (_, index) => (index === count - 1 ? last : duration)))
 }
+
+const ambientRepeated = (duration: number, count: number, last: number): number[] => {
+  return ambientTempo(Array.from({ length: count }, (_, index) => (index === count - 1 ? last : duration)))
+}
+
+const idleLastFrameHoldMs = 220
 
 export const HATCH_PET_V1_ANIMATIONS: Record<HatchPetState, AnimationDefinition> = {
   idle: {
     state: 'idle',
     row: 0,
-    frames: [0, 1, 2, 3, 4, 5],
-    durationsMs: [280, 110, 110, 140, 140, 320],
+    frames: [0, 1, 2, 3, 4, 5, 5, 5],
+    durationsMs: [
+      ...ambientTempo([280, 110, 110, 140, 140]),
+      idleLastFrameHoldMs,
+      idleLastFrameHoldMs,
+      idleLastFrameHoldMs
+    ],
     loop: true
   },
   'running-right': {
@@ -42,14 +59,14 @@ export const HATCH_PET_V1_ANIMATIONS: Record<HatchPetState, AnimationDefinition>
     state: 'waving',
     row: 3,
     frames: [0, 1, 2, 3],
-    durationsMs: [140, 140, 140, 280],
+    durationsMs: calmTempo([140, 140, 140, 280]),
     loop: false
   },
   jumping: {
     state: 'jumping',
     row: 4,
     frames: [0, 1, 2, 3, 4],
-    durationsMs: [140, 140, 140, 140, 280],
+    durationsMs: calmTempo([140, 140, 140, 140, 280]),
     loop: false
   },
   failed: {
@@ -63,7 +80,7 @@ export const HATCH_PET_V1_ANIMATIONS: Record<HatchPetState, AnimationDefinition>
     state: 'waiting',
     row: 6,
     frames: [0, 1, 2, 3, 4, 5],
-    durationsMs: repeated(150, 6, 260),
+    durationsMs: ambientRepeated(150, 6, 260),
     loop: true
   },
   running: {

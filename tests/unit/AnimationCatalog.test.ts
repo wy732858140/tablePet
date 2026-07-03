@@ -11,14 +11,23 @@ describe('AnimationCatalog', () => {
     expect(getAnimationDefinition('idle')).toEqual({
       state: 'idle',
       row: 0,
-      frames: [0, 1, 2, 3, 4, 5],
-      durationsMs: [280, 110, 110, 140, 140, 320],
+      frames: [0, 1, 2, 3, 4, 5, 5, 5],
+      durationsMs: [420, 170, 170, 210, 210, 220, 220, 220],
       loop: true
     })
   })
 
+  it('returns waiting at a slower ambient tempo', () => {
+    expect(getAnimationDefinition('waiting')?.durationsMs).toEqual([230, 230, 230, 230, 230, 390])
+  })
+
   it('returns failed as an 8-frame looping animation', () => {
     expect(getAnimationDefinition('failed')?.frames).toEqual([0, 1, 2, 3, 4, 5, 6, 7])
-    expect(getAnimationDefinition('failed')?.durationsMs).toEqual([140, 140, 140, 140, 140, 140, 140, 240])
+    expect(getAnimationDefinition('failed')?.durationsMs).toEqual([180, 180, 180, 180, 180, 180, 180, 310])
+  })
+
+  it('slows movement animations to a calmer desktop-pet tempo', () => {
+    expect(getAnimationDefinition('running')?.durationsMs).toEqual([160, 160, 160, 160, 160, 290])
+    expect(getAnimationDefinition('running-right')?.durationsMs).toEqual([160, 160, 160, 160, 160, 160, 160, 290])
   })
 })

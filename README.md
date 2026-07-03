@@ -15,10 +15,10 @@ macOS 和 Windows 上的透明桌宠窗口、本地宠物库、窗口控制、�
 ### 下载
 
 - 最新版本: [GitHub Releases](https://github.com/wy732858140/tablePet/releases/latest)
-- macOS Apple Silicon: [TablePet-mac-arm64-0.1.1.dmg](https://github.com/wy732858140/tablePet/releases/latest/download/TablePet-mac-arm64-0.1.1.dmg)
-- Windows x64: [TablePet-windows-x64-0.1.1.exe](https://github.com/wy732858140/tablePet/releases/latest/download/TablePet-windows-x64-0.1.1.exe)
-- macOS SHA-256: `497ab8072aaf29d63a6cd97b280b61ad4d40ab5a202ee54811d999180bfd180b`
-- Windows SHA-256: `3df03ec911ee13df56af38201ba0799ee08821b118dfbd6ad43ff2209bff1878`
+- macOS Apple Silicon: [TablePet-mac-arm64-0.1.2.dmg](https://github.com/wy732858140/tablePet/releases/latest/download/TablePet-mac-arm64-0.1.2.dmg)
+- Windows x64: [TablePet-windows-x64-0.1.2.exe](https://github.com/wy732858140/tablePet/releases/latest/download/TablePet-windows-x64-0.1.2.exe)
+- macOS SHA-256: `06d42c2e3a3279a1288c38f5af24a71a2f3b346921b54d663bded032e4e52770`
+- Windows SHA-256: `62fe89e3a4d996b0a1c087d58aceb1ed79df3486a855c7a72554505f8eb2b5fb`
 
 当前 release 产物按平台分开: macOS 安装包位于 `release/mac/`, Windows 安装包位于 `release/windows/`。两个安装包均未签名。
 
@@ -35,7 +35,7 @@ TablePet 的目标是先把桌宠的“运行端”做稳: 导入已有的 Hatch
 - 固定尺寸菜单页, 与宠物缩放解耦
 - Hatch Pet v1 `pet.json + spritesheet.webp` 包导入
 - 本地宠物库和当前宠物切换
-- 内置示例宠物: `卜卜`、`Doge`、`福宝` 和 `Kun Like`
+- 内置示例宠物: `卜卜`、`卜卜V2`、`Doge`、`福宝` 和 `Kun Like`
 - Canvas 2D atlas 动画播放
 - `idle`、`running-right`、`running-left`、`waving`、`jumping`、`failed`、`waiting`、`running`、`review` 默认动画状态
 - 鼠标点击、拖拽、窗口位置和缩放控制
@@ -146,10 +146,10 @@ tests/unit/      单元测试
 ### Download
 
 - Latest release: [GitHub Releases](https://github.com/wy732858140/tablePet/releases/latest)
-- macOS Apple Silicon: [TablePet-mac-arm64-0.1.1.dmg](https://github.com/wy732858140/tablePet/releases/latest/download/TablePet-mac-arm64-0.1.1.dmg)
-- Windows x64: [TablePet-windows-x64-0.1.1.exe](https://github.com/wy732858140/tablePet/releases/latest/download/TablePet-windows-x64-0.1.1.exe)
-- macOS SHA-256: `497ab8072aaf29d63a6cd97b280b61ad4d40ab5a202ee54811d999180bfd180b`
-- Windows SHA-256: `3df03ec911ee13df56af38201ba0799ee08821b118dfbd6ad43ff2209bff1878`
+- macOS Apple Silicon: [TablePet-mac-arm64-0.1.2.dmg](https://github.com/wy732858140/tablePet/releases/latest/download/TablePet-mac-arm64-0.1.2.dmg)
+- Windows x64: [TablePet-windows-x64-0.1.2.exe](https://github.com/wy732858140/tablePet/releases/latest/download/TablePet-windows-x64-0.1.2.exe)
+- macOS SHA-256: `06d42c2e3a3279a1288c38f5af24a71a2f3b346921b54d663bded032e4e52770`
+- Windows SHA-256: `62fe89e3a4d996b0a1c087d58aceb1ed79df3486a855c7a72554505f8eb2b5fb`
 
 Current release artifacts are separated by platform: the macOS installer is in `release/mac/`, and the Windows installer is in `release/windows/`. Both installers are unsigned.
 
@@ -167,7 +167,7 @@ accounts, and marketplace features are intentionally out of scope for the MVP.
 - Fixed-size menu view decoupled from pet scaling
 - Hatch Pet v1 `pet.json + spritesheet.webp` package import
 - Local pet library and current pet switching
-- Bundled sample pets: `卜卜`, `Doge`, `福宝`, and `Kun Like`
+- Bundled sample pets: `卜卜`, `卜卜V2`, `Doge`, `福宝`, and `Kun Like`
 - Canvas 2D atlas animation playback
 - Default animation states: `idle`, `running-right`, `running-left`, `waving`, `jumping`, `failed`, `waiting`, `running`, `review`
 - Click, drag, window position, and pet scale controls

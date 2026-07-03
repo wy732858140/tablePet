@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { installDefaultPets } from '../../src/main/pets/DefaultPetInstaller'
 import type { ImportResult, PetLibrary, PetLibraryEntry } from '../../src/shared/types'
 
-const BUILT_IN_PET_IDS = ['bobo', 'doge', 'fubao', 'kun-like']
+const BUILT_IN_PET_IDS = ['bobo', 'carrot-bouncer', 'doge', 'fubao', 'kun-like']
 
 const makeDefaultPetsDir = async () => {
   const dir = await mkdtemp(join(tmpdir(), 'default-pets-'))

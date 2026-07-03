@@ -1,11 +1,16 @@
 import type { HatchPetState, Point } from '@shared/types'
 
-type Mode = 'idle' | 'gesture' | 'dragging' | 'failed'
+type Mode = 'idle' | 'waiting' | 'gesture' | 'dragging' | 'typing' | 'review' | 'failed'
 
 export type BehaviorEngine = {
   currentAnimation(): HatchPetState
   click(): void
   doubleClick(): void
+  wait(): void
+  typingStart(): void
+  typingEnd(): void
+  reviewStart(): void
+  reviewEnd(): void
   dragStart(point: Point): void
   dragMove(point: Point): void
   dragEnd(): void
@@ -29,6 +34,31 @@ export const createBehaviorEngine = (): BehaviorEngine => {
     currentAnimation: () => animation,
     click: () => setGesture('waving'),
     doubleClick: () => setGesture('jumping'),
+    wait: () => {
+      if (mode !== 'idle') return
+      mode = 'waiting'
+      animation = 'waiting'
+    },
+    typingStart: () => {
+      if (mode !== 'idle' && mode !== 'waiting' && mode !== 'typing') return
+      mode = 'typing'
+      animation = 'running'
+    },
+    typingEnd: () => {
+      if (mode !== 'typing') return
+      mode = 'idle'
+      animation = 'idle'
+    },
+    reviewStart: () => {
+      if (mode !== 'idle' && mode !== 'waiting') return
+      mode = 'review'
+      animation = 'review'
+    },
+    reviewEnd: () => {
+      if (mode !== 'review') return
+      mode = 'idle'
+      animation = 'idle'
+    },
     dragStart: (point) => {
       if (mode === 'failed') return
       mode = 'dragging'

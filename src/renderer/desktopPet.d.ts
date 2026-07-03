@@ -13,6 +13,7 @@ declare global {
       setWindowSize(size: Size): Promise<void>
       closeWindow(): Promise<void>
       onImportPetRequested(callback: () => void): () => void
+      onTypingActivity(callback: () => void): () => void
     }
   }
 }

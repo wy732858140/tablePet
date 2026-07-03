@@ -43,7 +43,7 @@ describe('electron-builder config', () => {
       .map((entry) => entry.name)
       .sort((a, b) => a.localeCompare(b))
 
-    expect(petDirs).toEqual(['bobo', 'doge', 'fubao', 'kun-like'])
+    expect(petDirs).toEqual(['bobo', 'carrot-bouncer', 'doge', 'fubao', 'kun-like'])
     expect(config.extraResources).toEqual(
       expect.arrayContaining([
         expect.objectContaining({

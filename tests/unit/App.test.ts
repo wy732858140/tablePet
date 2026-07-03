@@ -13,9 +13,23 @@ class RejectingImage {
   }
 }
 
+class ResolvingImage {
+  src = ''
+
+  decode() {
+    return Promise.resolve()
+  }
+}
+
 const settle = async () => {
   for (let index = 0; index < 4; index += 1) {
     await new Promise((resolve) => setTimeout(resolve, 0))
+  }
+}
+
+const flushPromises = async () => {
+  for (let index = 0; index < 4; index += 1) {
+    await Promise.resolve()
   }
 }
 
@@ -42,6 +56,10 @@ const makeSettings = (): Settings => ({
   }
 })
 
+type DesktopPetMock = Window['desktopPet'] & {
+  emitTypingActivity(): void
+}
+
 const mountApp = async () => {
   const host = document.createElement('div')
   document.body.append(host)
@@ -53,8 +71,9 @@ const mountApp = async () => {
   return { app, host }
 }
 
-const installDesktopPetMock = (library: PetLibrary, settings = makeSettings()) => {
-  window.desktopPet = {
+const installDesktopPetMock = (library: PetLibrary, settings = makeSettings()): DesktopPetMock => {
+  const typingActivityCallbacks: Array<() => void> = []
+  const api = {
     listPets: vi.fn().mockResolvedValue(library),
     importPetPackage: vi.fn(),
     setCurrentPet: vi.fn(async (id: string) => ({
@@ -73,9 +92,31 @@ const installDesktopPetMock = (library: PetLibrary, settings = makeSettings()) =
     setPetPosition: vi.fn(),
     setWindowSize: vi.fn().mockResolvedValue(undefined),
     closeWindow: vi.fn(),
-    onImportPetRequested: vi.fn(() => vi.fn())
+    onImportPetRequested: vi.fn(() => vi.fn()),
+    onTypingActivity: vi.fn((callback: () => void) => {
+      typingActivityCallbacks.push(callback)
+      return () => {
+        const index = typingActivityCallbacks.indexOf(callback)
+        if (index !== -1) {
+          typingActivityCallbacks.splice(index, 1)
+        }
+      }
+    })
+  } as Window['desktopPet'] & { onTypingActivity: (callback: () => void) => () => void }
+  window.desktopPet = api as Window['desktopPet']
+  return Object.assign(api, {
+    emitTypingActivity: () => {
+      typingActivityCallbacks.forEach((callback) => callback())
+    }
+  })
+}
+
+const animationState = (host: Element) => {
+  const frame = host.querySelector<HTMLElement>('[data-pet-frame="true"]')
+  if (!frame) {
+    throw new Error('Missing pet frame.')
   }
-  return window.desktopPet
+  return frame.dataset.animationState
 }
 
 const clickButton = (host: Element, label: string) => {
@@ -94,12 +135,16 @@ const dispatchPointer = (
     screenY: number
     clientX?: number
     clientY?: number
+    timeStamp?: number
     pointerId?: number
     button?: number
     buttons?: number
   }
 ) => {
   const event = new Event(type, { bubbles: true, cancelable: true }) as PointerEvent
+  if (point.timeStamp !== undefined) {
+    Object.defineProperty(event, 'timeStamp', { value: point.timeStamp })
+  }
   Object.assign(event, {
     pointerId: point.pointerId ?? 1,
     button: point.button ?? 0,
@@ -114,6 +159,7 @@ const dispatchPointer = (
 
 describe('App', () => {
   beforeEach(() => {
+    vi.stubGlobal('Image', ResolvingImage)
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
       clearRect: vi.fn(),
       drawImage: vi.fn(),
@@ -122,6 +168,7 @@ describe('App', () => {
   })
 
   afterEach(() => {
+    vi.useRealTimers()
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
     document.body.replaceChildren()
@@ -215,6 +262,163 @@ describe('App', () => {
     expect(api.setWindowSize).toHaveBeenLastCalledWith(toPetWindowSize(1))
 
     app.unmount()
+  })
+
+  it('anchors pet controls to the selected pet frame instead of the transparent window bounds', async () => {
+    const doge = makePet('doge', 'Doge')
+    const settings = makeSettings()
+    settings.petWindow.scale = 0.75
+    installDesktopPetMock({ currentPetId: null, pets: [doge] }, settings)
+
+    const { app, host } = await mountApp()
+    clickButton(host, 'Select Doge')
+    await settle()
+
+    const frame = host.querySelector<HTMLElement>('[data-pet-frame="true"]')
+    expect(frame).not.toBeNull()
+    expect(frame?.style.getPropertyValue('--pet-width')).toBe('144px')
+    expect(frame?.style.getPropertyValue('--pet-height')).toBe('156px')
+    expect(frame?.querySelector('[data-window-shell="pet"]')).not.toBeNull()
+    expect(frame?.querySelector('[aria-label="Resize pet"]')).not.toBeNull()
+
+    app.unmount()
+  })
+
+  it('plays review briefly after selecting a pet', async () => {
+    const doge = makePet('doge', 'Doge')
+    installDesktopPetMock({ currentPetId: null, pets: [doge] })
+
+    const { app, host } = await mountApp()
+    vi.useFakeTimers()
+    clickButton(host, 'Select Doge')
+    await flushPromises()
+
+    expect(animationState(host)).toBe('review')
+    await vi.advanceTimersByTimeAsync(1600)
+    expect(animationState(host)).toBe('idle')
+
+    app.unmount()
+  })
+
+  it('enters waiting after the selected pet is idle for a while', async () => {
+    const doge = makePet('doge', 'Doge')
+    installDesktopPetMock({ currentPetId: null, pets: [doge] })
+
+    const { app, host } = await mountApp()
+    vi.useFakeTimers()
+    clickButton(host, 'Select Doge')
+    await flushPromises()
+    await vi.advanceTimersByTimeAsync(1600)
+
+    expect(animationState(host)).toBe('idle')
+    await vi.advanceTimersByTimeAsync(29_999)
+    expect(animationState(host)).toBe('idle')
+    await vi.advanceTimersByTimeAsync(1)
+    expect(animationState(host)).toBe('waiting')
+
+    app.unmount()
+  })
+
+  it('plays jumping on double click and returns to idle when the animation ends', async () => {
+    const doge = makePet('doge', 'Doge')
+    installDesktopPetMock({ currentPetId: null, pets: [doge] })
+
+    const { app, host } = await mountApp()
+    vi.useFakeTimers()
+    clickButton(host, 'Select Doge')
+    await flushPromises()
+    await vi.advanceTimersByTimeAsync(1600)
+
+    host.querySelector<HTMLElement>('.pet-surface')?.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))
+    await flushPromises()
+    expect(animationState(host)).toBe('jumping')
+    window.dispatchEvent(new CustomEvent('pet-animation-ended'))
+    await flushPromises()
+    expect(animationState(host)).toBe('idle')
+
+    app.unmount()
+  })
+
+  it('plays running while global typing activity is active', async () => {
+    const doge = makePet('doge', 'Doge')
+    const api = installDesktopPetMock({ currentPetId: null, pets: [doge] })
+
+    const { app, host } = await mountApp()
+    vi.useFakeTimers()
+    clickButton(host, 'Select Doge')
+    await flushPromises()
+    await vi.advanceTimersByTimeAsync(1600)
+
+    api.emitTypingActivity()
+    await flushPromises()
+    expect(animationState(host)).toBe('running')
+    await vi.advanceTimersByTimeAsync(799)
+    expect(animationState(host)).toBe('running')
+    await vi.advanceTimersByTimeAsync(1)
+    expect(animationState(host)).toBe('idle')
+
+    app.unmount()
+  })
+
+  it('does not enter directional running until drag movement passes the threshold', async () => {
+    const doge = makePet('doge', 'Doge')
+    installDesktopPetMock({ currentPetId: null, pets: [doge] })
+
+    const { app, host } = await mountApp()
+    vi.useFakeTimers()
+    clickButton(host, 'Select Doge')
+    await flushPromises()
+    await vi.advanceTimersByTimeAsync(1600)
+
+    const surface = host.querySelector<HTMLElement>('.pet-surface')
+    if (!surface) {
+      throw new Error('Missing pet surface.')
+    }
+
+    dispatchPointer(surface, 'pointerdown', { screenX: 100, screenY: 100, buttons: 1 })
+    dispatchPointer(surface, 'pointermove', { screenX: 102, screenY: 102, buttons: 1 })
+    await flushPromises()
+    expect(animationState(host)).toBe('idle')
+    dispatchPointer(surface, 'pointermove', { screenX: 130, screenY: 102, buttons: 1 })
+    await flushPromises()
+    expect(animationState(host)).toBe('running-right')
+
+    app.unmount()
+  })
+
+  it('plays failed briefly when the pet is flung too quickly', async () => {
+    const doge = makePet('doge', 'Doge')
+    installDesktopPetMock({ currentPetId: null, pets: [doge] })
+
+    const { app, host } = await mountApp()
+    vi.useFakeTimers()
+    clickButton(host, 'Select Doge')
+    await flushPromises()
+    await vi.advanceTimersByTimeAsync(1600)
+
+    const surface = host.querySelector<HTMLElement>('.pet-surface')
+    if (!surface) {
+      throw new Error('Missing pet surface.')
+    }
+
+    dispatchPointer(surface, 'pointerdown', { screenX: 100, screenY: 100, timeStamp: 100, buttons: 1 })
+    dispatchPointer(surface, 'pointermove', { screenX: 360, screenY: 110, timeStamp: 140, buttons: 1 })
+    await flushPromises()
+    expect(animationState(host)).toBe('failed')
+
+    await vi.advanceTimersByTimeAsync(1600)
+    expect(animationState(host)).toBe('idle')
+
+    app.unmount()
+  })
+
+  it('reveals pet chrome from the pet frame hover target instead of whole-window hover', async () => {
+    const source = await readFile('src/renderer/app/App.vue', 'utf8')
+
+    expect(source).not.toContain('.app:hover .window-bar')
+    expect(source).not.toContain('.app:hover .resize-handle')
+    expect(source).toContain('.pet-frame:hover .window-bar')
+    expect(source).toContain('.pet-frame:hover .resize-handle')
   })
 
   it('returns to the pet menu from the window bar', async () => {

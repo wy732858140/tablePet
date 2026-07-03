@@ -16,6 +16,11 @@ const api = {
     const listener = () => callback()
     ipcRenderer.on('ui:import-pet', listener)
     return () => ipcRenderer.off('ui:import-pet', listener)
+  },
+  onTypingActivity: (callback: () => void): (() => void) => {
+    const listener = () => callback()
+    ipcRenderer.on('ui:typing-activity', listener)
+    return () => ipcRenderer.off('ui:typing-activity', listener)
   }
 }
 

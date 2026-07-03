@@ -25,7 +25,19 @@ let pointerStart: { x: number; y: number } | null = null
 let windowDragOffset: { x: number; y: number } | null = null
 let resizeDragStart: { x: number; y: number; scale: number } | null = null
 let unsubscribeImportRequest: (() => void) | null = null
+let unsubscribeTypingActivity: (() => void) | null = null
+let idleTimer: number | null = null
+let reviewTimer: number | null = null
+let typingTimer: number | null = null
+let fastDragStunTimer: number | null = null
+let lastDragSample: { x: number; y: number; time: number } | null = null
 const dragThresholdPx = 4
+const fastDragMinDistancePx = 120
+const fastDragSpeedPxPerMs = 1.8
+const fastDragStunMs = 1_600
+const idleWaitingMs = 30_000
+const reviewGlanceMs = 1_600
+const typingActivityIdleMs = 800
 
 const viewState = computed<PetViewState>(() => {
   if (currentPet.value) {
@@ -41,8 +53,83 @@ const loadedPet = computed(() =>
   !isMenuOpen.value && viewState.value.kind === 'loaded' ? viewState.value.pet : null
 )
 
+const petFrameStyle = computed(() => ({
+  '--pet-width': `${Math.round(HATCH_PET_V1_CELL.width * scale.value)}px`,
+  '--pet-height': `${Math.round(HATCH_PET_V1_CELL.height * scale.value)}px`
+}))
+
 const syncAnimation = () => {
   animation.value = engine.currentAnimation()
+}
+
+const clearIdleTimer = () => {
+  if (idleTimer !== null) {
+    window.clearTimeout(idleTimer)
+    idleTimer = null
+  }
+}
+
+const clearReviewTimer = () => {
+  if (reviewTimer !== null) {
+    window.clearTimeout(reviewTimer)
+    reviewTimer = null
+  }
+}
+
+const clearTypingTimer = () => {
+  if (typingTimer !== null) {
+    window.clearTimeout(typingTimer)
+    typingTimer = null
+  }
+}
+
+const clearFastDragStunTimer = () => {
+  if (fastDragStunTimer !== null) {
+    window.clearTimeout(fastDragStunTimer)
+    fastDragStunTimer = null
+  }
+}
+
+const resetIdleTimer = () => {
+  clearIdleTimer()
+  if (!loadedPet.value) return
+  idleTimer = window.setTimeout(() => {
+    engine.wait()
+    syncAnimation()
+  }, idleWaitingMs)
+}
+
+const playReviewGlance = () => {
+  clearReviewTimer()
+  engine.reviewStart()
+  syncAnimation()
+  reviewTimer = window.setTimeout(() => {
+    reviewTimer = null
+    engine.reviewEnd()
+    syncAnimation()
+    resetIdleTimer()
+  }, reviewGlanceMs)
+}
+
+const stopAmbientTimers = () => {
+  clearIdleTimer()
+  clearReviewTimer()
+  clearTypingTimer()
+  clearFastDragStunTimer()
+}
+
+const onTypingActivity = () => {
+  if (!loadedPet.value) return
+  clearTypingTimer()
+  engine.typingStart()
+  syncAnimation()
+  typingTimer = window.setTimeout(() => {
+    typingTimer = null
+    engine.typingEnd()
+    syncAnimation()
+    resetIdleTimer()
+  }, typingActivityIdleMs)
+  resetIdleTimer()
 }
 
 const messageFromError = (error: unknown) => (error instanceof Error ? error.message : 'Unexpected renderer error.')
@@ -89,13 +176,16 @@ const importPet = async () => {
       await refreshLibrary()
       if (currentPet.value) {
         openPet()
+        playReviewGlance()
       }
     } else {
       errorMessage.value = result.message
+      stopAmbientTimers()
       engine.fail()
     }
   } catch (error) {
     errorMessage.value = messageFromError(error)
+    stopAmbientTimers()
     engine.fail()
   }
   syncAnimation()
@@ -110,9 +200,11 @@ const selectPet = async (id: string) => {
     errorMessage.value = null
     openPet()
     engine.recover()
+    playReviewGlance()
   } catch (error) {
     isMenuOpen.value = true
     errorMessage.value = messageFromError(error)
+    stopAmbientTimers()
     engine.fail()
   }
   syncAnimation()
@@ -147,6 +239,7 @@ const closeWindow = () => {
 const setWindowSize = (size: { width: number; height: number }) => {
   void window.desktopPet.setWindowSize(size).catch((error) => {
     errorMessage.value = messageFromError(error)
+    stopAmbientTimers()
     engine.fail()
     syncAnimation()
   })
@@ -163,6 +256,7 @@ const setPetWindowSize = () => {
 const openPet = () => {
   isMenuOpen.value = false
   setPetWindowSize()
+  resetIdleTimer()
 }
 
 const openMenu = () => {
@@ -170,8 +264,10 @@ const openMenu = () => {
   pointerActive = false
   didDrag = false
   pointerStart = null
+  lastDragSample = null
   windowDragOffset = null
   resizeDragStart = null
+  stopAmbientTimers()
   errorMessage.value = null
   engine.recover()
   setMenuWindowSize()
@@ -206,9 +302,11 @@ const persistPetScale = (nextScale: number) => {
   scale.value = clampedScale
   void window.desktopPet.setPetScale(clampedScale).catch((error) => {
     errorMessage.value = messageFromError(error)
+    stopAmbientTimers()
     engine.fail()
     syncAnimation()
   })
+  resetIdleTimer()
 }
 
 const onResizeStart = (event: PointerEvent) => {
@@ -237,19 +335,51 @@ const onPointerDown = (event: PointerEvent) => {
   pointerActive = true
   didDrag = false
   pointerStart = { x: event.screenX, y: event.screenY }
+  lastDragSample = { x: event.screenX, y: event.screenY, time: event.timeStamp }
   capturePointer(event)
-  engine.dragStart({ x: event.screenX, y: event.screenY })
+  resetIdleTimer()
+}
+
+const isFastDragMove = (event: PointerEvent) => {
+  if (!lastDragSample) return false
+  const distance = Math.hypot(event.screenX - lastDragSample.x, event.screenY - lastDragSample.y)
+  const elapsedMs = Math.max(event.timeStamp - lastDragSample.time, 1)
+  return distance >= fastDragMinDistancePx && distance / elapsedMs >= fastDragSpeedPxPerMs
+}
+
+const playFastDragStun = (event: PointerEvent) => {
+  pointerActive = false
+  didDrag = true
+  pointerStart = null
+  lastDragSample = null
+  releasePointer(event)
+  stopAmbientTimers()
+  engine.fail()
   syncAnimation()
+  fastDragStunTimer = window.setTimeout(() => {
+    fastDragStunTimer = null
+    engine.recover()
+    syncAnimation()
+    resetIdleTimer()
+  }, fastDragStunMs)
 }
 
 const onPointerMove = (event: PointerEvent) => {
   if (!pointerActive) return
   const deltaX = event.screenX - (pointerStart?.x ?? event.screenX)
   const deltaY = event.screenY - (pointerStart?.y ?? event.screenY)
+  if (isFastDragMove(event)) {
+    playFastDragStun(event)
+    return
+  }
+  lastDragSample = { x: event.screenX, y: event.screenY, time: event.timeStamp }
   if (!didDrag && Math.hypot(deltaX, deltaY) < dragThresholdPx) {
     return
   }
-  didDrag = true
+  if (!didDrag) {
+    didDrag = true
+    engine.dragStart(pointerStart ?? { x: event.screenX, y: event.screenY })
+  }
   engine.dragMove({ x: event.screenX, y: event.screenY })
   syncAnimation()
   void window.desktopPet.setPetPosition({ x: event.screenX - 144, y: event.screenY - 156 })
@@ -259,9 +389,13 @@ const onPointerUp = (event: PointerEvent) => {
   if (!pointerActive) return
   pointerActive = false
   pointerStart = null
+  lastDragSample = null
   releasePointer(event)
-  engine.dragEnd()
-  syncAnimation()
+  if (didDrag) {
+    engine.dragEnd()
+    syncAnimation()
+    resetIdleTimer()
+  }
 }
 
 const onClick = () => {
@@ -271,15 +405,24 @@ const onClick = () => {
   }
   engine.click()
   syncAnimation()
+  resetIdleTimer()
+}
+
+const onDoubleClick = () => {
+  engine.doubleClick()
+  syncAnimation()
+  resetIdleTimer()
 }
 
 const onAnimationEnded = () => {
   engine.animationEnded()
   syncAnimation()
+  resetIdleTimer()
 }
 
 const onPetLoadError = (message: string) => {
   errorMessage.value = message
+  stopAmbientTimers()
   engine.fail()
   syncAnimation()
 }
@@ -287,6 +430,9 @@ const onPetLoadError = (message: string) => {
 const cleanup = () => {
   unsubscribeImportRequest?.()
   unsubscribeImportRequest = null
+  unsubscribeTypingActivity?.()
+  unsubscribeTypingActivity = null
+  stopAmbientTimers()
   window.removeEventListener('pet-animation-ended', onAnimationEnded)
   window.removeEventListener('beforeunload', cleanup)
 }
@@ -298,6 +444,7 @@ onMounted(async () => {
   unsubscribeImportRequest = window.desktopPet.onImportPetRequested(() => {
     void importPet()
   })
+  unsubscribeTypingActivity = window.desktopPet.onTypingActivity(onTypingActivity)
   window.addEventListener('pet-animation-ended', onAnimationEnded)
   window.addEventListener('beforeunload', cleanup)
 })
@@ -306,78 +453,111 @@ onUnmounted(cleanup)
 </script>
 
 <template>
-  <main class="app">
-    <section class="window-bar" :data-window-shell="isMenuOpen ? 'menu' : 'pet'" aria-label="Window controls">
-      <div
-        class="window-drag-handle"
-        @pointerdown="onWindowDragStart"
-        @pointermove="onWindowDragMove"
-        @pointerup="onWindowDragEnd"
-        @pointercancel="onWindowDragEnd"
-      >
-        <span class="nav-mark" aria-hidden="true"></span>
-        <span class="nav-title">TablePet</span>
-        <span class="nav-status">{{ isMenuOpen ? 'Menu' : loadedPet?.displayName ?? 'Pet' }}</span>
-      </div>
-      <button
-        v-if="!isMenuOpen"
-        class="nav-icon-button nav-icon-button--secondary"
-        type="button"
-        aria-label="Open pet library"
-        title="Open pet library"
-        @click="openMenu"
-      >
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M4 7h16" />
-          <path d="M4 12h16" />
-          <path d="M4 17h16" />
-        </svg>
-      </button>
-      <button
-        class="nav-icon-button nav-icon-button--danger"
-        type="button"
-        aria-label="Quit TablePet"
-        title="Quit TablePet"
-        @click="closeWindow"
-      >
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M18 6 6 18" />
-          <path d="m6 6 12 12" />
-        </svg>
-      </button>
-    </section>
+  <main class="app" :data-mode="isMenuOpen ? 'menu' : 'pet'">
     <div
       v-if="loadedPet"
-      class="pet-surface"
-      @pointerdown="onPointerDown"
-      @pointermove="onPointerMove"
-      @pointerup="onPointerUp"
-      @pointercancel="onPointerUp"
-      @click="onClick"
+      class="pet-frame"
+      data-pet-frame="true"
+      :data-animation-state="animation"
+      :style="petFrameStyle"
     >
-      <PetCanvas :pet="loadedPet" :state="animation" :scale="scale" @load-error="onPetLoadError" />
-      <p v-if="errorMessage" class="pet-error">{{ errorMessage }}</p>
-      <button
-        class="resize-handle"
-        data-control="resize"
-        type="button"
-        aria-label="Resize pet"
-        title="Resize pet"
-        @pointerdown.stop.prevent="onResizeStart"
-        @pointermove.stop.prevent="onResizeMove"
-        @pointerup.stop.prevent="onResizeEnd"
-        @pointercancel.stop.prevent="onResizeEnd"
-        @click.stop.prevent
+      <section class="window-bar" data-window-shell="pet" aria-label="Window controls">
+        <div
+          class="window-drag-handle"
+          @pointerdown="onWindowDragStart"
+          @pointermove="onWindowDragMove"
+          @pointerup="onWindowDragEnd"
+          @pointercancel="onWindowDragEnd"
+        >
+          <span class="nav-mark" aria-hidden="true"></span>
+          <span class="nav-title">TablePet</span>
+          <span class="nav-status">{{ loadedPet.displayName }}</span>
+        </div>
+        <button
+          class="nav-icon-button nav-icon-button--secondary"
+          type="button"
+          aria-label="Open pet library"
+          title="Open pet library"
+          @click="openMenu"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 7h16" />
+            <path d="M4 12h16" />
+            <path d="M4 17h16" />
+          </svg>
+        </button>
+        <button
+          class="nav-icon-button nav-icon-button--danger"
+          type="button"
+          aria-label="Quit TablePet"
+          title="Quit TablePet"
+          @click="closeWindow"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M18 6 6 18" />
+            <path d="m6 6 12 12" />
+          </svg>
+        </button>
+      </section>
+      <div
+        class="pet-surface"
+        @pointerdown="onPointerDown"
+        @pointermove="onPointerMove"
+        @pointerup="onPointerUp"
+        @pointercancel="onPointerUp"
+        @click="onClick"
+        @dblclick="onDoubleClick"
       >
-        <svg class="resize-icon" viewBox="0 0 32 32" aria-hidden="true">
-          <path class="resize-arrow" d="M13 13 5 5M5 5h7M5 5v7" />
-          <path class="resize-arrow" d="M19 13 27 5M27 5h-7M27 5v7" />
-          <path class="resize-arrow" d="M13 19 5 27M5 27h7M5 27v-7" />
-          <path class="resize-arrow" d="M19 19 27 27M27 27h-7M27 27v-7" />
-        </svg>
-      </button>
+        <PetCanvas :pet="loadedPet" :state="animation" :scale="scale" @load-error="onPetLoadError" />
+        <p v-if="errorMessage" class="pet-error">{{ errorMessage }}</p>
+        <button
+          class="resize-handle"
+          data-control="resize"
+          type="button"
+          aria-label="Resize pet"
+          title="Resize pet"
+          @pointerdown.stop.prevent="onResizeStart"
+          @pointermove.stop.prevent="onResizeMove"
+          @pointerup.stop.prevent="onResizeEnd"
+          @pointercancel.stop.prevent="onResizeEnd"
+          @click.stop.prevent
+        >
+          <svg class="resize-icon" viewBox="0 0 32 32" aria-hidden="true">
+            <path class="resize-arrow" d="M13 13 5 5M5 5h7M5 5v7" />
+            <path class="resize-arrow" d="M19 13 27 5M27 5h-7M27 5v7" />
+            <path class="resize-arrow" d="M13 19 5 27M5 27h7M5 27v-7" />
+            <path class="resize-arrow" d="M19 19 27 27M27 27h-7M27 27v-7" />
+          </svg>
+        </button>
+      </div>
     </div>
-    <section v-else class="welcome" aria-label="Pet menu">
+    <template v-else>
+      <section class="window-bar" data-window-shell="menu" aria-label="Window controls">
+        <div
+          class="window-drag-handle"
+          @pointerdown="onWindowDragStart"
+          @pointermove="onWindowDragMove"
+          @pointerup="onWindowDragEnd"
+          @pointercancel="onWindowDragEnd"
+        >
+          <span class="nav-mark" aria-hidden="true"></span>
+          <span class="nav-title">TablePet</span>
+          <span class="nav-status">Menu</span>
+        </div>
+        <button
+          class="nav-icon-button nav-icon-button--danger"
+          type="button"
+          aria-label="Quit TablePet"
+          title="Quit TablePet"
+          @click="closeWindow"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M18 6 6 18" />
+            <path d="m6 6 12 12" />
+          </svg>
+        </button>
+      </section>
+      <section class="welcome" aria-label="Pet menu">
       <div class="menu-shell" data-menu-shell="cute-library">
         <header class="menu-header">
           <div class="menu-copy">
@@ -401,20 +581,21 @@ onUnmounted(cleanup)
         <p v-if="viewState.kind === 'error'" class="error-message">{{ viewState.message }}</p>
         <PetLibraryView :pets="pets" @select="selectPet" />
       </div>
-    </section>
+      </section>
+    </template>
   </main>
 </template>
 
 <style scoped>
 .app,
 .pet-surface {
-  width: 100%;
-  height: 100%;
   background: transparent;
 }
 
 .app {
   position: relative;
+  width: 100%;
+  height: 100%;
   --tp-background: #f4fffb;
   --tp-card: #fbfffd;
   --tp-card-elevated: #ffffff;
@@ -431,6 +612,15 @@ onUnmounted(cleanup)
   color: var(--tp-foreground);
   font-family:
     "Avenir Next", Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.pet-frame {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: var(--pet-width);
+  height: var(--pet-height);
+  transform: translate(-50%, -50%);
 }
 
 .window-bar {
@@ -454,11 +644,20 @@ onUnmounted(cleanup)
     transform 120ms ease;
 }
 
-.app:hover .window-bar,
+.app[data-mode="menu"]:hover .window-bar,
+.pet-frame:hover .window-bar,
 .window-bar:focus-within {
   opacity: 1;
   pointer-events: auto;
   transform: translateY(0);
+}
+
+.window-bar[data-window-shell="pet"] {
+  top: 6px;
+  right: 6px;
+  left: 6px;
+  gap: 6px;
+  height: 30px;
 }
 
 .window-drag-handle {
@@ -480,6 +679,10 @@ onUnmounted(cleanup)
   user-select: none;
 }
 
+.window-bar[data-window-shell="pet"] .window-drag-handle {
+  padding: 0 8px;
+}
+
 .nav-mark {
   flex: 0 0 auto;
   width: 8px;
@@ -498,6 +701,10 @@ onUnmounted(cleanup)
   white-space: nowrap;
 }
 
+.window-bar[data-window-shell="pet"] .nav-title {
+  display: none;
+}
+
 .nav-status {
   flex: 0 0 auto;
   max-width: 112px;
@@ -510,6 +717,10 @@ onUnmounted(cleanup)
   font-weight: 650;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.window-bar[data-window-shell="pet"] .nav-status {
+  max-width: 58px;
 }
 
 .nav-icon-button {
@@ -544,6 +755,11 @@ onUnmounted(cleanup)
   stroke-linejoin: round;
 }
 
+.window-bar[data-window-shell="pet"] .nav-icon-button {
+  width: 30px;
+  height: 30px;
+}
+
 .nav-icon-button:hover {
   border-color: var(--tp-border-strong);
   background: rgba(232, 252, 246, 0.96);
@@ -568,6 +784,8 @@ onUnmounted(cleanup)
   position: relative;
   display: grid;
   place-items: center;
+  width: 100%;
+  height: 100%;
   touch-action: none;
 }
 
@@ -598,7 +816,7 @@ onUnmounted(cleanup)
     border-color 120ms ease;
 }
 
-.app:hover .resize-handle,
+.pet-frame:hover .resize-handle,
 .resize-handle:focus-visible {
   opacity: 1;
   pointer-events: auto;

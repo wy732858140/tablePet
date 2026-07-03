@@ -7,12 +7,14 @@ import { createPetLibraryStore } from './pets/PetLibraryStore.js'
 import { createPetPackageImporter } from './pets/PetPackageImporter.js'
 import { createSettingsStore } from './settings/SettingsStore.js'
 import { createTrayController } from './tray/TrayController.js'
+import { createTypingActivityMonitor } from './typing/TypingActivityMonitor.js'
 import { createWindowController } from './window/WindowController.js'
 import { MENU_WINDOW_SIZE } from '../shared/petWindowScale.js'
 
 const isDev = !app.isPackaged
 
 let trayController: ReturnType<typeof createTrayController> | null = null
+let typingActivityMonitor: ReturnType<typeof createTypingActivityMonitor> | null = null
 
 void app.whenReady().then(async () => {
   const appDataDir = join(app.getPath('userData'), 'runtime')
@@ -29,6 +31,10 @@ void app.whenReady().then(async () => {
 
   await installDefaultPets(defaultPetsDir, importer, libraryStore)
   windowController.createPetWindow()
+  typingActivityMonitor = createTypingActivityMonitor(() => {
+    windowController.getPetWindow()?.webContents.send('ui:typing-activity')
+  })
+  void typingActivityMonitor.start()
   registerIpcHandlers(windowController, importer, libraryStore, settingsStore, {
     quit: () => app.quit()
   })
@@ -42,4 +48,9 @@ void app.whenReady().then(async () => {
 
 app.on('window-all-closed', () => {
   // Keep the tray app running.
+})
+
+app.on('before-quit', () => {
+  typingActivityMonitor?.stop()
+  typingActivityMonitor = null
 })
