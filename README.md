@@ -8,6 +8,8 @@ TablePet 是一个独立桌宠运行端, 用于运行 Codex Hatch Pet v1 宠物�
 macOS 和 Windows 上的透明桌宠窗口、本地宠物库、窗口控制、拖拽互动、缩放、托盘入口
 以及内置示例宠物。
 
+**宣传页 / Landing Page**: [https://wy732858140.github.io/tablePet/](https://wy732858140.github.io/tablePet/)
+
 ---
 
 ## 中文说明
