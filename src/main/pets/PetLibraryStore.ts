@@ -1,5 +1,5 @@
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
+import { isAbsolute, join, relative, resolve } from 'node:path'
 import type { PetLibrary, PetLibraryEntry } from '../../shared/types.js'
 
 const emptyLibrary = (): PetLibrary => ({ currentPetId: null, pets: [] })
@@ -10,6 +10,9 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const isNonEmptyString = (value: unknown): value is string => typeof value === 'string' && value.trim().length > 0
 
 const isStatus = (value: unknown): value is PetLibraryEntry['status'] => value === 'ok' || value === 'error'
+
+const withRemovedPetIds = (library: Omit<PetLibrary, 'removedPetIds'>, removedPetIds: string[]): PetLibrary =>
+  removedPetIds.length > 0 ? { ...library, removedPetIds } : library
 
 const normalizePetEntry = (value: unknown): PetLibraryEntry | null => {
   if (!isRecord(value)) {
@@ -66,14 +69,38 @@ const normalizeLibrary = (value: unknown): PetLibrary | null => {
     return null
   }
 
-  return {
-    currentPetId,
-    pets: petEntries
+  if (value.removedPetIds !== undefined && !Array.isArray(value.removedPetIds)) {
+    return null
   }
+
+  const removedPetIds = value.removedPetIds ?? []
+  if (!Array.isArray(removedPetIds) || removedPetIds.some((id) => !isNonEmptyString(id))) {
+    return null
+  }
+
+  return withRemovedPetIds(
+    {
+      currentPetId,
+      pets: petEntries
+    },
+    [...new Set(removedPetIds)]
+  )
 }
 
 export const createPetLibraryStore = (appDataDir: string) => {
   const libraryPath = join(appDataDir, 'library.json')
+  const managedPetsDir = resolve(appDataDir, 'pets')
+
+  const isManagedPackageDir = (entry: PetLibraryEntry): boolean => {
+    const relativePackageDir = relative(managedPetsDir, resolve(entry.packageDir))
+    return (
+      relativePackageDir === entry.id &&
+      !relativePackageDir.startsWith('..') &&
+      !isAbsolute(relativePackageDir) &&
+      !relativePackageDir.includes('/') &&
+      !relativePackageDir.includes('\\')
+    )
+  }
 
   const save = async (library: PetLibrary): Promise<PetLibrary> => {
     await mkdir(appDataDir, { recursive: true })
@@ -105,7 +132,8 @@ export const createPetLibraryStore = (appDataDir: string) => {
       petIndex === -1
         ? [...library.pets, entry]
         : library.pets.map((pet, index) => (index === petIndex ? entry : pet))
-    const next = { currentPetId: entry.id, pets }
+    const removedPetIds = (library.removedPetIds ?? []).filter((id) => id !== entry.id)
+    const next = withRemovedPetIds({ currentPetId: entry.id, pets }, removedPetIds)
     return save(next)
   }
 
@@ -117,5 +145,31 @@ export const createPetLibraryStore = (appDataDir: string) => {
     return save({ ...library, currentPetId: id })
   }
 
-  return { load, save, upsert, setCurrentPet }
+  const remove = async (id: string): Promise<PetLibrary> => {
+    const library = await load()
+    const entry = library.pets.find((pet) => pet.id === id)
+    if (!entry) {
+      throw new Error(`Pet not found: ${id}`)
+    }
+
+    const pets = library.pets.filter((pet) => pet.id !== id)
+    const removedPetIds = [...new Set([...(library.removedPetIds ?? []), id])]
+    const saved = await save(
+      withRemovedPetIds(
+        {
+          currentPetId: library.currentPetId === id ? null : library.currentPetId,
+          pets
+        },
+        removedPetIds
+      )
+    )
+
+    if (isManagedPackageDir(entry)) {
+      await rm(entry.packageDir, { recursive: true, force: true }).catch(() => undefined)
+    }
+
+    return saved
+  }
+
+  return { load, save, upsert, setCurrentPet, remove }
 }

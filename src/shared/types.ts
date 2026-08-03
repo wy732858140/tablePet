@@ -50,6 +50,7 @@ export type PetLibraryEntry = LoadedPet & {
 export type PetLibrary = {
   currentPetId: string | null
   pets: PetLibraryEntry[]
+  removedPetIds?: string[]
 }
 
 export type Settings = {

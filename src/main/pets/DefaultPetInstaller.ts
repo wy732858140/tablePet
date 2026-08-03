@@ -27,6 +27,7 @@ export const installDefaultPets = async (
 ): Promise<DefaultPetInstallResult> => {
   const library = await libraryStore.load()
   const previousCurrentPetId = library.currentPetId
+  const removedPetIds = new Set(library.removedPetIds ?? [])
   const imported: string[] = []
   const failed: DefaultPetInstallResult['failed'] = []
 
@@ -41,7 +42,7 @@ export const installDefaultPets = async (
   }
 
   const defaultPetDirs = entries
-    .filter((entry) => entry.isDirectory() && !entry.name.startsWith('.'))
+    .filter((entry) => entry.isDirectory() && !entry.name.startsWith('.') && !removedPetIds.has(entry.name))
     .map((entry) => join(defaultPetsDir, entry.name))
     .sort((a, b) => a.localeCompare(b))
 

@@ -73,13 +73,25 @@ const mountApp = async () => {
 
 const installDesktopPetMock = (library: PetLibrary, settings = makeSettings()): DesktopPetMock => {
   const typingActivityCallbacks: Array<() => void> = []
+  let currentLibrary = library
   const api = {
-    listPets: vi.fn().mockResolvedValue(library),
+    listPets: vi.fn(async () => currentLibrary),
     importPetPackage: vi.fn(),
-    setCurrentPet: vi.fn(async (id: string) => ({
-      ...library,
-      currentPetId: id
-    })),
+    setCurrentPet: vi.fn(async (id: string) => {
+      currentLibrary = {
+        ...currentLibrary,
+        currentPetId: id
+      }
+      return currentLibrary
+    }),
+    deletePet: vi.fn(async (id: string) => {
+      currentLibrary = {
+        currentPetId: currentLibrary.currentPetId === id ? null : currentLibrary.currentPetId,
+        pets: currentLibrary.pets.filter((pet) => pet.id !== id),
+        removedPetIds: [...new Set([...(currentLibrary.removedPetIds ?? []), id])]
+      }
+      return currentLibrary
+    }),
     setPetScale: vi.fn(async (nextScale: number) => ({
       ...settings,
       petWindow: {
@@ -264,6 +276,23 @@ describe('App', () => {
     app.unmount()
   })
 
+  it('deletes a pet from the menu library', async () => {
+    const momo = makePet('momo', 'Momo')
+    const nori = makePet('nori', 'Nori')
+    const api = installDesktopPetMock({ currentPetId: null, pets: [momo, nori] })
+
+    const { app, host } = await mountApp()
+    await settle()
+    clickButton(host, 'Delete Momo')
+    await settle()
+
+    expect(api.deletePet).toHaveBeenCalledWith('momo')
+    expect(host.textContent).not.toContain('Momo')
+    expect(host.textContent).toContain('Nori')
+
+    app.unmount()
+  })
+
   it('anchors pet controls to the selected pet frame instead of the transparent window bounds', async () => {
     const doge = makePet('doge', 'Doge')
     const settings = makeSettings()
@@ -382,6 +411,42 @@ describe('App', () => {
     dispatchPointer(surface, 'pointermove', { screenX: 130, screenY: 102, buttons: 1 })
     await flushPromises()
     expect(animationState(host)).toBe('running-right')
+
+    app.unmount()
+  })
+
+  it('keeps the pointer anchored to the original pet click point while dragging', async () => {
+    const doge = makePet('doge', 'Doge')
+    const api = installDesktopPetMock({ currentPetId: null, pets: [doge] })
+
+    const { app, host } = await mountApp()
+    vi.useFakeTimers()
+    clickButton(host, 'Select Doge')
+    await flushPromises()
+    await vi.advanceTimersByTimeAsync(1600)
+
+    const surface = host.querySelector<HTMLElement>('.pet-surface')
+    if (!surface) {
+      throw new Error('Missing pet surface.')
+    }
+
+    dispatchPointer(surface, 'pointerdown', {
+      screenX: 300,
+      screenY: 500,
+      clientX: 72,
+      clientY: 220,
+      buttons: 1
+    })
+    dispatchPointer(surface, 'pointermove', {
+      screenX: 330,
+      screenY: 530,
+      clientX: 102,
+      clientY: 250,
+      buttons: 1
+    })
+    await flushPromises()
+
+    expect(api.setPetPosition).toHaveBeenLastCalledWith({ x: 258, y: 310 })
 
     app.unmount()
   })

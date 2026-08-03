@@ -1,4 +1,4 @@
-import { mkdtemp, readdir, writeFile } from 'node:fs/promises'
+import { access, mkdir, mkdtemp, readdir, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -122,5 +122,26 @@ describe('PetLibraryStore', () => {
       currentPetId: 'momo',
       pets: [updatedMomo, nori]
     })
+  })
+
+  it('removes a pet, clears it as current, and deletes its managed package copy', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'pet-library-'))
+    const store = createPetLibraryStore(dir)
+    const momoDir = join(dir, 'pets', 'momo')
+    await mkdir(momoDir, { recursive: true })
+    await writeFile(join(momoDir, 'pet.json'), '{}')
+    const momo = createPet('momo', {
+      packageDir: momoDir,
+      spritesheetPath: join(momoDir, 'spritesheet.webp')
+    })
+    const nori = createPet('nori')
+    await store.save({ currentPetId: 'momo', pets: [momo, nori] })
+
+    await expect(store.remove('momo')).resolves.toEqual({
+      currentPetId: null,
+      pets: [nori],
+      removedPetIds: ['momo']
+    })
+    await expect(access(momoDir)).rejects.toMatchObject({ code: 'ENOENT' })
   })
 })
