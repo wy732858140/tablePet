@@ -28,21 +28,22 @@ const makeHook = () => {
 }
 
 describe('TypingActivityMonitor', () => {
-  it('asks macOS to prompt for accessibility access before loading the native hook', async () => {
-    const { hook } = makeHook()
-    const loadHook = vi.fn(async () => hook)
-    const monitor = createTypingActivityMonitor(vi.fn(), loadHook)
+  it.runIf(process.platform === 'darwin')(
+    'asks macOS to prompt for accessibility access before loading the native hook',
+    async () => {
+      const { hook } = makeHook()
+      const loadHook = vi.fn(async () => hook)
+      const monitor = createTypingActivityMonitor(vi.fn(), loadHook)
 
-    await expect(monitor.start()).resolves.toBe(false)
+      await expect(monitor.start()).resolves.toBe(false)
 
-    if (process.platform === 'darwin') {
       expect(electronMock.isTrustedAccessibilityClient).toHaveBeenCalledWith(true)
       expect(loadHook).not.toHaveBeenCalled()
       expect(hook.start).not.toHaveBeenCalled()
-    }
 
-    monitor.stop()
-  })
+      monitor.stop()
+    }
+  )
 
   it('emits typing activity without exposing key payloads', async () => {
     const { hook, emitKeydown } = makeHook()

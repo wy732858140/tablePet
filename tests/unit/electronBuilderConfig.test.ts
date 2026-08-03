@@ -21,8 +21,15 @@ type ElectronBuilderConfig = {
   }
 }
 
+type PackageConfig = {
+  scripts?: Record<string, string>
+}
+
 const readConfig = async () =>
   JSON.parse(await readFile(resolve('electron-builder.json'), 'utf8')) as ElectronBuilderConfig
+
+const readPackageConfig = async () =>
+  JSON.parse(await readFile(resolve('package.json'), 'utf8')) as PackageConfig
 
 describe('electron-builder config', () => {
   it('uses packaged app icons for macOS and Windows', async () => {
@@ -60,5 +67,12 @@ describe('electron-builder config', () => {
         expect(access(resolve('pets', id, 'spritesheet.webp'))).resolves.toBeUndefined()
       ])
     )
+  })
+
+  it('reuses the installed Electron runtime for Windows packaging', async () => {
+    const packageConfig = await readPackageConfig()
+
+    expect(packageConfig.scripts?.['package:win']).toContain('-c.electronDist=node_modules/electron/dist')
+    expect(packageConfig.scripts?.['dist:win']).toContain('-c.electronDist=node_modules/electron/dist')
   })
 })
