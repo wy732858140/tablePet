@@ -22,6 +22,7 @@ const engine = createBehaviorEngine()
 let pointerActive = false
 let didDrag = false
 let pointerStart: { x: number; y: number } | null = null
+let petDragOffset: { x: number; y: number } | null = null
 let windowDragOffset: { x: number; y: number } | null = null
 let resizeDragStart: { x: number; y: number; scale: number } | null = null
 let unsubscribeImportRequest: (() => void) | null = null
@@ -210,6 +211,24 @@ const selectPet = async (id: string) => {
   syncAnimation()
 }
 
+const deletePet = async (id: string) => {
+  try {
+    applyLibrary(await window.desktopPet.deletePet(id))
+    errorMessage.value = null
+    engine.recover()
+    if (!currentPet.value) {
+      openMenu()
+    }
+  } catch (error) {
+    isMenuOpen.value = true
+    errorMessage.value = messageFromError(error)
+    stopAmbientTimers()
+    engine.fail()
+    setMenuWindowSize()
+  }
+  syncAnimation()
+}
+
 const capturePointer = (event: PointerEvent) => {
   const target = event.currentTarget as HTMLElement | null
   if (
@@ -264,6 +283,7 @@ const openMenu = () => {
   pointerActive = false
   didDrag = false
   pointerStart = null
+  petDragOffset = null
   lastDragSample = null
   windowDragOffset = null
   resizeDragStart = null
@@ -335,6 +355,7 @@ const onPointerDown = (event: PointerEvent) => {
   pointerActive = true
   didDrag = false
   pointerStart = { x: event.screenX, y: event.screenY }
+  petDragOffset = { x: event.clientX, y: event.clientY }
   lastDragSample = { x: event.screenX, y: event.screenY, time: event.timeStamp }
   capturePointer(event)
   resetIdleTimer()
@@ -351,6 +372,7 @@ const playFastDragStun = (event: PointerEvent) => {
   pointerActive = false
   didDrag = true
   pointerStart = null
+  petDragOffset = null
   lastDragSample = null
   releasePointer(event)
   stopAmbientTimers()
@@ -382,13 +404,22 @@ const onPointerMove = (event: PointerEvent) => {
   }
   engine.dragMove({ x: event.screenX, y: event.screenY })
   syncAnimation()
-  void window.desktopPet.setPetPosition({ x: event.screenX - 144, y: event.screenY - 156 })
+  const dragOffset = petDragOffset ?? { x: event.clientX, y: event.clientY }
+  void window.desktopPet.setPetPosition(
+    getDraggedWindowPosition({
+      screenX: event.screenX,
+      screenY: event.screenY,
+      offsetX: dragOffset.x,
+      offsetY: dragOffset.y
+    })
+  )
 }
 
 const onPointerUp = (event: PointerEvent) => {
   if (!pointerActive) return
   pointerActive = false
   pointerStart = null
+  petDragOffset = null
   lastDragSample = null
   releasePointer(event)
   if (didDrag) {
@@ -579,7 +610,7 @@ onUnmounted(cleanup)
           </button>
         </div>
         <p v-if="viewState.kind === 'error'" class="error-message">{{ viewState.message }}</p>
-        <PetLibraryView :pets="pets" @select="selectPet" />
+        <PetLibraryView :pets="pets" @select="selectPet" @remove="deletePet" />
       </div>
       </section>
     </template>

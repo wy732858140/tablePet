@@ -2,7 +2,7 @@
 import type { PetLibraryEntry } from '@shared/types'
 
 defineProps<{ pets: PetLibraryEntry[] }>()
-defineEmits<{ select: [id: string] }>()
+defineEmits<{ select: [id: string]; remove: [id: string] }>()
 </script>
 
 <template>
@@ -25,14 +25,24 @@ defineEmits<{ select: [id: string] }>()
         <span class="pet-copy">
           <span class="pet-name">{{ pet.displayName }}</span>
         </span>
-        <button
-          type="button"
-          class="select-button"
-          :aria-label="`Select ${pet.displayName}`"
-          @click="$emit('select', pet.id)"
-        >
-          Use
-        </button>
+        <span class="pet-actions">
+          <button
+            type="button"
+            class="select-button"
+            :aria-label="`Select ${pet.displayName}`"
+            @click="$emit('select', pet.id)"
+          >
+            Use
+          </button>
+          <button
+            type="button"
+            class="delete-button"
+            :aria-label="`Delete ${pet.displayName}`"
+            @click="$emit('remove', pet.id)"
+          >
+            Del
+          </button>
+        </span>
       </li>
     </ul>
   </section>
@@ -156,14 +166,18 @@ defineEmits<{ select: [id: string] }>()
   overflow-wrap: anywhere;
 }
 
-.select-button {
+.pet-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.select-button,
+.delete-button {
   min-width: 54px;
   height: 32px;
   padding: 0 10px;
-  border: 1px solid rgba(44, 146, 127, 0.28);
   border-radius: 8px;
   background: #fbfffd;
-  color: #2c927f;
   font-size: 12px;
   font-weight: 700;
   line-height: 1;
@@ -174,13 +188,31 @@ defineEmits<{ select: [id: string] }>()
     color 120ms ease;
 }
 
+.select-button {
+  border: 1px solid rgba(44, 146, 127, 0.28);
+  color: #2c927f;
+}
+
 .select-button:hover {
   border-color: rgba(44, 146, 127, 0.46);
   background: #4cb6a2;
   color: #ffffff;
 }
 
-.select-button:focus-visible {
+.delete-button {
+  min-width: 44px;
+  border: 1px solid rgba(227, 109, 93, 0.28);
+  color: #b85042;
+}
+
+.delete-button:hover {
+  border-color: rgba(227, 109, 93, 0.46);
+  background: #e36d5d;
+  color: #ffffff;
+}
+
+.select-button:focus-visible,
+.delete-button:focus-visible {
   outline: 2px solid #4cb6a2;
   outline-offset: 2px;
 }

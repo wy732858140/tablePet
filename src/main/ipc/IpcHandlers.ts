@@ -72,6 +72,7 @@ export const registerIpcHandlers = (
 ) => {
   ipcMain.handle('pet:list', () => libraryStore.load())
   ipcMain.handle('pet:set-current', (_event, id: unknown) => libraryStore.setCurrentPet(toPetId(id)))
+  ipcMain.handle('pet:delete', (_event, id: unknown) => libraryStore.remove(toPetId(id)))
   ipcMain.handle('settings:get', () => settingsStore.load())
   ipcMain.handle('settings:set-pet-scale', async (_event, scale: unknown) => {
     const petScale = toPetScale(scale)

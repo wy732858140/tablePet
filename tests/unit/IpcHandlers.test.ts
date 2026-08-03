@@ -34,7 +34,7 @@ const createHandlerContext = () => {
     ensureVisible: vi.fn()
   }
   const importer = { importFolder: vi.fn() }
-  const libraryStore = { load: vi.fn(), save: vi.fn(), upsert: vi.fn(), setCurrentPet: vi.fn() }
+  const libraryStore = { load: vi.fn(), save: vi.fn(), upsert: vi.fn(), setCurrentPet: vi.fn(), remove: vi.fn() }
   const appLifecycle = { quit: vi.fn() }
   const settingsStore = {
     load: vi.fn().mockResolvedValue({
@@ -118,9 +118,27 @@ describe('IpcHandlers', () => {
     expect(libraryStore.setCurrentPet).toHaveBeenCalledWith('fubao')
   })
 
+  it('deletes a pet through IPC', async () => {
+    const { libraryStore } = createHandlerContext()
+    libraryStore.remove.mockResolvedValue({ currentPetId: null, pets: [], removedPetIds: ['fubao'] })
+
+    await expect(getHandler('pet:delete')(undefined, 'fubao')).resolves.toEqual({
+      currentPetId: null,
+      pets: [],
+      removedPetIds: ['fubao']
+    })
+
+    expect(libraryStore.remove).toHaveBeenCalledWith('fubao')
+  })
+
   it.each([null, '', '   ', 42])('rejects invalid current pet ids: %s', (id) => {
     createHandlerContext()
     expect(() => getHandler('pet:set-current')(undefined, id)).toThrow('Invalid pet id.')
+  })
+
+  it.each([null, '', '   ', 42])('rejects invalid deleted pet ids: %s', (id) => {
+    createHandlerContext()
+    expect(() => getHandler('pet:delete')(undefined, id)).toThrow('Invalid pet id.')
   })
 
   it('saves pet scale and resizes the pet window through IPC', async () => {

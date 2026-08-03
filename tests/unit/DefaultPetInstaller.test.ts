@@ -39,6 +39,12 @@ const makeStore = (library: PetLibrary) => ({
   setCurrentPet: vi.fn(async (id: string) => {
     library.currentPetId = id
     return library
+  }),
+  remove: vi.fn(async (id: string) => {
+    library.pets = library.pets.filter((pet) => pet.id !== id)
+    library.currentPetId = library.currentPetId === id ? null : library.currentPetId
+    library.removedPetIds = [...new Set([...(library.removedPetIds ?? []), id])]
+    return library
   })
 })
 
@@ -74,5 +80,18 @@ describe('installDefaultPets', () => {
     await installDefaultPets(defaultPetsDir, importer, store)
 
     expect(store.setCurrentPet).toHaveBeenCalledWith('custom')
+  })
+
+  it('does not reinstall bundled pets that the user removed', async () => {
+    const defaultPetsDir = await makeDefaultPetsDir()
+    const importer = makeImporter()
+    const removedPetIds = ['doge']
+    const store = makeStore({ currentPetId: null, pets: [], removedPetIds })
+
+    const result = await installDefaultPets(defaultPetsDir, importer, store)
+
+    const expectedImported = BUILT_IN_PET_IDS.filter((id) => id !== 'doge')
+    expect(importer.importFolder.mock.calls.map(([folder]) => basename(folder))).toEqual(expectedImported)
+    expect(result.imported).toEqual(expectedImported)
   })
 })
