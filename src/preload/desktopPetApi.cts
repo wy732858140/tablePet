@@ -5,6 +5,7 @@ const api = {
   listPets: (): Promise<PetLibrary> => ipcRenderer.invoke('pet:list'),
   importPetPackage: (): Promise<ImportResult> => ipcRenderer.invoke('pet:import-folder'),
   setCurrentPet: (id: string): Promise<PetLibrary> => ipcRenderer.invoke('pet:set-current', id),
+  deletePet: (id: string): Promise<PetLibrary> => ipcRenderer.invoke('pet:delete', id),
   setPetScale: (scale: number): Promise<Settings> => ipcRenderer.invoke('settings:set-pet-scale', scale),
   getSettings: (): Promise<Settings> => ipcRenderer.invoke('settings:get'),
   setClickThrough: (enabled: boolean, forward = true): Promise<void> =>

@@ -6,6 +6,7 @@ declare global {
       listPets(): Promise<PetLibrary>
       importPetPackage(): Promise<ImportResult>
       setCurrentPet(id: string): Promise<PetLibrary>
+      deletePet(id: string): Promise<PetLibrary>
       setPetScale(scale: number): Promise<Settings>
       getSettings(): Promise<Settings>
       setClickThrough(enabled: boolean, forward?: boolean): Promise<void>
