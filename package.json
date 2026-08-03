@@ -16,10 +16,10 @@
     "test:watch": "vitest",
     "package": "npm run package:mac",
     "package:mac": "npm run build && electron-builder --mac --arm64 --dir -c.electronDist=node_modules/electron/dist -c.directories.output=release/mac",
-    "package:win": "npm run build && electron-builder --win --x64 --dir -c.directories.output=release/windows",
+    "package:win": "npm run build && electron-builder --win --x64 --dir -c.electronDist=node_modules/electron/dist -c.directories.output=release/windows",
     "dist": "npm run dist:mac",
     "dist:mac": "npm run build && electron-builder --mac --arm64 -c.electronDist=node_modules/electron/dist -c.directories.output=release/mac",
-    "dist:win": "npm run build && electron-builder --win --x64 -c.directories.output=release/windows"
+    "dist:win": "npm run build && electron-builder --win --x64 -c.electronDist=node_modules/electron/dist -c.directories.output=release/windows"
   },
   "engines": {
     "node": ">=20.19.0",
